@@ -1,0 +1,6 @@
+[package]
+name = "GameCube-ISO-Assistant"
+version = "0.1.0"
+authors = ["Addison Bean <addisonbean@gmail.com>"]
+
+[dependencies]
