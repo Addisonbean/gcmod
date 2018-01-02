@@ -1,8 +1,9 @@
+extern crate gamecube_iso_assistant;
+
 use std::env;
 use std::process::exit;
 
-mod game;
-use game::Game;
+use gamecube_iso_assistant::Game;
 
 fn main() {
     let filename = match env::args().nth(1) {

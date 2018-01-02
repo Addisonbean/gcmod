@@ -1,6 +1,8 @@
 [package]
-name = "GameCube-ISO-Assistant"
+# name = "GameCube-ISO-Assistant"
+name = "gamecube-iso-assistant"
 version = "0.1.0"
 authors = ["Addison Bean <addisonbean@gmail.com>"]
 
 [dependencies]
+byteorder = "1"
