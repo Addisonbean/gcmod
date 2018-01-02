@@ -9,6 +9,7 @@ use fst::FSTEntry;
 pub struct Game {
     pub game_id: String,
     pub title: String,
+    pub fst: Vec<FSTEntry>,
 }
 
 impl Game {
@@ -35,11 +36,22 @@ impl Game {
         the_reads.seek(SeekFrom::Start(fst_addr)).unwrap();
 
         (&mut the_reads).take(12).read_exact(&mut entry_buffer).unwrap();
-        let root = FSTEntry::new(&entry_buffer);
+        let root = FSTEntry::new(&entry_buffer, 0).unwrap();
+        let entry_count = match root {
+            FSTEntry::Directory { next_index, ..} => next_index,
+            _ => return None,
+        };
 
-        println!("{:?}", root);
+        let mut fst = Vec::with_capacity(entry_count);
+        fst.push(root);
+
+        for index in 1..entry_count {
+            (&mut the_reads).take(12).read_exact(&mut entry_buffer).unwrap();
+            fst.push(FSTEntry::new(&entry_buffer, index).unwrap());
+        }
 
         Some(Game {
+            fst,
             game_id,
             title,
         })

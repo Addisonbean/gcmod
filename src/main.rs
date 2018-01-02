@@ -23,7 +23,6 @@ fn main() {
     };
 
     println!("{}", &game.title);
-    // println!("{}", &game.title.capacity());
     println!("{}", &game.game_id);
-    // println!("{}", &game.game_id.capacity());
+    println!("{}", game.fst.len());
 }
