@@ -61,9 +61,20 @@ impl Game {
             fst.push(Entry::new(&entry_buffer, index).unwrap());
         }
 
-        let string_table_addr = the_reads.seek(SeekFrom::Current(0)).unwrap();
+        let str_tbl_addr = the_reads.seek(SeekFrom::Current(0)).unwrap();
 
-        println!("{}", fst[0].filename(&mut the_reads, string_table_addr));
+        for e in fst.iter_mut() {
+            e.read_filename(&mut the_reads, str_tbl_addr);
+        }
+
+        // println!("{}", fst[0].filename(&mut the_reads, string_table_addr));
+        for e in &fst[0..3] {
+            let name = match e {
+                &Entry::Directory { ref name, .. } => name,
+                &Entry::File { ref name, .. } => name,
+            };
+            println!("{}", name);
+        }
 
         Some(Game {
             fst,
