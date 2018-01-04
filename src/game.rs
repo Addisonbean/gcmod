@@ -3,7 +3,7 @@ use std::io::{BufReader, Read, Seek, SeekFrom};
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use fst::Entry;
+use fst::{Entry, EntryType};
 
 const GAMEID_SIZE: usize = 6;
 const GAMEID_ADDR: u64 = 0;
@@ -48,8 +48,8 @@ impl Game {
 
         (&mut the_reads).take(FST_ENTRY_SIZE as u64).read_exact(&mut entry_buffer).unwrap();
         let root = Entry::new(&entry_buffer, 0).unwrap();
-        let entry_count = match root {
-            Entry::Directory { next_index, ..} => next_index,
+        let entry_count = match root.entry_type {
+            EntryType::Directory { next_index, ..} => next_index,
             _ => return None,
         };
 
@@ -69,11 +69,7 @@ impl Game {
 
         // println!("{}", fst[0].filename(&mut the_reads, string_table_addr));
         for e in &fst[0..3] {
-            let name = match e {
-                &Entry::Directory { ref name, .. } => name,
-                &Entry::File { ref name, .. } => name,
-            };
-            println!("{}", name);
+            println!("{}", e.name);
         }
 
         Some(Game {
