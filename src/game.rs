@@ -9,7 +9,7 @@ const GAMEID_SIZE: usize = 6;
 const GAMEID_ADDR: u64 = 0;
 
 const TITLE_SIZE: usize = 0x60;
-const TITLE_ADDR: u64 = 0x60;
+const TITLE_ADDR: u64 = 0x20;
 
 const FST_ADDR_PTR: u64 = 0x0424; 
 const FST_ENTRY_SIZE: usize = 12;
@@ -60,6 +60,10 @@ impl Game {
             (&mut the_reads).take(FST_ENTRY_SIZE as u64).read_exact(&mut entry_buffer).unwrap();
             fst.push(Entry::new(&entry_buffer, index).unwrap());
         }
+
+        let string_table_addr = the_reads.seek(SeekFrom::Current(0)).unwrap();
+
+        println!("{}", fst[0].filename(&mut the_reads, string_table_addr));
 
         Some(Game {
             fst,
