@@ -25,4 +25,10 @@ fn main() {
     println!("{}", &game.title);
     println!("{}", &game.game_id);
     println!("{}", game.fst.len());
+
+    for e in &game.fst[0..3] {
+        println!("{}", e.name);
+    }
+
+    println!("{}", &game.fst.last().unwrap().name);
 }

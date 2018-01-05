@@ -67,10 +67,8 @@ impl Game {
             e.read_filename(&mut the_reads, str_tbl_addr);
         }
 
-        // println!("{}", fst[0].filename(&mut the_reads, string_table_addr));
-        for e in &fst[0..3] {
-            println!("{}", e.name);
-        }
+        // let mut f = File::create("ay.ssm").unwrap();
+        // fst[2].read(&mut the_reads, &mut f);
 
         Some(Game {
             fst,
