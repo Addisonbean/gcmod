@@ -1,6 +1,9 @@
-use byteorder::{ReadBytesExt, BigEndian};
 use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 use std::cmp::min;
+use std::fs::{File, create_dir};
+use std::path::Path;
+
+use byteorder::{ReadBytesExt, BigEndian};
 
 const WRITE_CHUNK_SIZE: usize = 16384; // 16384 = 2**14
 
@@ -68,12 +71,13 @@ impl Entry {
             unsafe {
                 let mut bytes = self.name.as_mut_vec();
                 reader.read_until(0, &mut bytes).unwrap();
+                bytes.pop();
             }
         }
     }
 
     // TODO: return a result (io::Result? ya?) (also, does this have to be BufRead, rather than Read? Should it?
-    pub fn read<R, W>(&self, reader: &mut R, writer: &mut W) -> io::Result<()>
+    pub fn write<R, W>(&self, reader: &mut R, writer: &mut W) -> io::Result<()>
         where R: BufRead + Seek, W: Write
     {
         match self.entry_type {
@@ -92,8 +96,71 @@ impl Entry {
                     bytes_left -= bytes_read;
                 }
             },
-            EntryType::Directory { .. } => unimplemented!(),
+            // EntryType::Directory { .. } => unimplemented!(),
+            EntryType::Directory {..} => (), // TODO: throw error? make the directory?
         };
         Ok(())
     }
+
+    // move to Game?
+    pub fn write_with_name<P: AsRef<Path>, R: BufRead + Seek>(&self, filename: P, fst: &Vec<Entry>, iso: &mut R) -> io::Result<()> {
+        match self.entry_type {
+            EntryType::Directory {..} => {
+                create_dir(filename.as_ref())?;
+                for e in self.iter_contents(fst) {
+                    e.write_with_name(filename.as_ref().join(&e.name), fst, iso)?;
+                }
+            },
+            EntryType::File {..} => {
+                let mut f = File::create(filename.as_ref())?;
+                self.write(iso, &mut f);
+            },
+        }
+        Ok(())
+    }
+
+    pub fn iter_contents<'a>(&'a self, fst: &'a Vec<Entry>) -> DirectoryIter<'a> {
+        if let EntryType::Directory { .. } = self.entry_type {
+            DirectoryIter::new(self, fst)
+        } else {
+            // this panic will be removed in the next commit
+            panic!()
+        }
+    }
 }
+
+pub struct DirectoryIter<'a> {
+    entry: &'a Entry,
+    fst: &'a Vec<Entry>,
+    current_index: usize,
+}
+
+impl<'a> DirectoryIter<'a> {
+    fn new(entry: &'a Entry, fst: &'a Vec<Entry>) -> DirectoryIter<'a> {
+        DirectoryIter {
+            entry,
+            fst,
+            current_index: entry.index + 1,
+        }
+    }
+}
+
+impl<'a> Iterator for DirectoryIter<'a> {
+    type Item = &'a Entry;
+
+    fn next(&mut self) -> Option<&'a Entry> {
+        if let EntryType::Directory { next_index, .. } = self.entry.entry_type {
+            if self.current_index < next_index {
+                let res = &self.fst[self.current_index];
+                let step = match res.entry_type {
+                    EntryType::File { .. } => 1,
+                    EntryType::Directory { next_index: _next_index, .. } => _next_index - self.current_index,
+                };
+                self.current_index += step;
+                return Some(res);
+            }
+        }
+        None
+    }
+}
+

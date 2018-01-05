@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::path::Path;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 
 use byteorder::{ReadBytesExt, BigEndian};
@@ -14,7 +15,6 @@ const TITLE_ADDR: u64 = 0x20;
 const FST_ADDR_PTR: u64 = 0x0424; 
 const FST_ENTRY_SIZE: usize = 12;
 
-
 #[derive(Debug)]
 pub struct Game {
     pub game_id: String,
@@ -23,7 +23,9 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn open(filename: &str) -> Option<Game> {
+
+    // TODO: this needs to be split up into several functions
+    pub fn open<P: AsRef<Path>>(filename: &str, files_directory: P) -> Option<Game> {
         let f = match File::open(&filename) {
             Ok(f) => f,
             Err(_) => return None,
@@ -67,8 +69,7 @@ impl Game {
             e.read_filename(&mut the_reads, str_tbl_addr);
         }
 
-        // let mut f = File::create("ay.ssm").unwrap();
-        // fst[2].read(&mut the_reads, &mut f);
+        // fst[0].write_with_name(files_directory, &fst, &mut the_reads).unwrap();
 
         Some(Game {
             fst,

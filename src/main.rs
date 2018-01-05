@@ -1,4 +1,5 @@
 extern crate gamecube_iso_assistant;
+extern crate rand;
 
 use std::env;
 use std::process::exit;
@@ -14,7 +15,13 @@ fn main() {
         },
     };
 
-    let game = match Game::open(&filename) {
+    
+
+    let mut tmp_dir_name = env::temp_dir();
+    tmp_dir_name.push(&format!("gamecube_rom-{}", rand::random::<u32>()));
+
+    // let game = match Game::open(&filename, Some(tmp_dir_name)) {
+    let game = match Game::open(&filename, tmp_dir_name) {
         Some(g) => g,
         None => {
             eprintln!("Could not open '{}'", &filename);
