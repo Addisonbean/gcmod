@@ -34,8 +34,8 @@ fn main() {
     println!("{}", game.fst.len());
 
     for e in &game.fst[0..3] {
-        println!("{}", e.name);
+        println!("{}", e.info().name);
     }
 
-    println!("{}", &game.fst.last().unwrap().name);
+    println!("{}", &game.fst.last().unwrap().info().name);
 }

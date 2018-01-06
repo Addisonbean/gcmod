@@ -4,7 +4,7 @@ use std::io::{BufReader, Read, Seek, SeekFrom};
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use fst::{Entry, EntryType};
+use fst::Entry;
 
 const GAMEID_SIZE: usize = 6;
 const GAMEID_ADDR: u64 = 0;
@@ -50,10 +50,7 @@ impl Game {
 
         (&mut the_reads).take(FST_ENTRY_SIZE as u64).read_exact(&mut entry_buffer).unwrap();
         let root = Entry::new(&entry_buffer, 0).unwrap();
-        let entry_count = match root.entry_type {
-            EntryType::Directory { next_index, ..} => next_index,
-            _ => return None,
-        };
+        let entry_count = root.as_dir().unwrap().next_index;
 
         let mut fst = Vec::with_capacity(entry_count);
         fst.push(root);
@@ -67,9 +64,12 @@ impl Game {
 
         for e in fst.iter_mut() {
             e.read_filename(&mut the_reads, str_tbl_addr);
+            if e.as_dir().is_some() {
+                println!("{}", e.info().name);
+            }
         }
 
-        // fst[0].write_with_name(files_directory, &fst, &mut the_reads).unwrap();
+        fst[0].write_with_name(files_directory, &fst, &mut the_reads).unwrap();
 
         Some(Game {
             fst,
