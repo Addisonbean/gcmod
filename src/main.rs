@@ -15,13 +15,7 @@ fn main() {
         },
     };
 
-    
-
-    let mut tmp_dir_name = env::temp_dir();
-    tmp_dir_name.push(&format!("gamecube_rom-{}", rand::random::<u32>()));
-
-    // let game = match Game::open(&filename, Some(tmp_dir_name)) {
-    let game = match Game::open(&filename, tmp_dir_name) {
+    let mut game = match Game::open(&filename) {
         Some(g) => g,
         None => {
             eprintln!("Could not open '{}'", &filename);
@@ -38,4 +32,9 @@ fn main() {
     }
 
     println!("{}", &game.fst.last().unwrap().info().name);
+
+
+    let mut tmp_dir_name = env::temp_dir();
+    tmp_dir_name.push(&format!("gamecube_rom-{}", rand::random::<u32>()));
+    game.write_files(tmp_dir_name);
 }
