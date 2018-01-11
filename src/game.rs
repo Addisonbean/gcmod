@@ -7,12 +7,15 @@ use byteorder::{ReadBytesExt, BigEndian};
 
 use fst::Entry;
 use dol::Header as DOLHeader;
+use app_loader::AppLoader;
 
-const WRITE_CHUNK_SIZE: usize = 1048576; // 1048576 = 2^20 = 1MiB
+// TODO: move these const's into modules
+pub const WRITE_CHUNK_SIZE: usize = 1048576; // 1048576 = 2^20 = 1MiB
 
 const GAMEID_SIZE: usize = 6;
 const GAMEID_ADDR: u64 = 0;
 
+// TODO: other sources suggest this size is larger, look into that...
 const TITLE_SIZE: usize = 0x60;
 const TITLE_ADDR: u64 = 0x20;
 
@@ -136,6 +139,12 @@ impl Game {
         }
 
         Ok(())
+    }
+
+    pub fn write_app_loader<P>(&mut self, path: P) -> io::Result<()>
+        where P: AsRef<Path>
+    {
+        AppLoader::write_to_disk(&mut self.iso, path)
     }
 }
 

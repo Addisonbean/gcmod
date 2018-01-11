@@ -3,8 +3,10 @@ extern crate rand;
 
 use std::env;
 use std::process::exit;
+use std::fs::File;
 
 use gamecube_iso_assistant::Game;
+use gamecube_iso_assistant::app_loader::AppLoader;
 
 fn main() {
     let filename = match env::args().nth(1) {
@@ -39,12 +41,19 @@ fn main() {
     game.write_files(tmp_dir_name).unwrap();
     // */
 
-    //*
+    /*
     let mut tmp_dir_name = env::temp_dir();
     tmp_dir_name.push(&format!("gamecube_dol-{}", rand::random::<u32>()));
     game.write_dol(&tmp_dir_name).unwrap();
     // */
 
+    //*
+    let mut tmp_name = env::temp_dir();
+    tmp_name.push(&format!("gamecube_app_loader-{}", rand::random::<u32>()));
+    game.write_app_loader(&tmp_name).unwrap();
+    // */
+    
+    println!("{:?}", AppLoader::new(&mut File::open(&tmp_name).unwrap()));
 
 }
 

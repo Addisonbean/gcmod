@@ -19,8 +19,7 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn new<F: Read + Seek>(file: &mut F, offset: u32) -> io::Result<Header> {
-        file.seek(SeekFrom::Start(offset as u64))?;
+    pub fn new<F: Read>(file: &mut F) -> io::Result<Header> {
         let mut text_segments = [Segment::default(); TEXT_SEG_COUNT];
         let mut data_segments = [Segment::default(); DATA_SEG_COUNT];
         {
