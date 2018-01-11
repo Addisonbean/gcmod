@@ -5,7 +5,7 @@ use std::path::Path;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-const WRITE_CHUNK_SIZE: usize = 16384; // 16384 = 2**14
+const WRITE_CHUNK_SIZE: usize = 1048576; // 1048576 = 2^20 = 1MiB
 
 #[derive(Debug)]
 pub struct EntryInfo {
@@ -146,9 +146,9 @@ impl FileEntry {
             let bytes_to_read = min(bytes_left, WRITE_CHUNK_SIZE) as u64;
 
             let bytes_read = reader.take(bytes_to_read).read(&mut buf)?;
+            if bytes_read == 0 { break }
             writer.write_all(&buf[..bytes_read])?;
 
-            buf = [0; WRITE_CHUNK_SIZE];
             bytes_left -= bytes_read;
         }
         Ok(())

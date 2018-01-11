@@ -33,8 +33,18 @@ fn main() {
 
     println!("{}", &game.fst.last().unwrap().info().name);
 
-
+    /*
     let mut tmp_dir_name = env::temp_dir();
     tmp_dir_name.push(&format!("gamecube_rom-{}", rand::random::<u32>()));
-    game.write_files(tmp_dir_name);
+    game.write_files(tmp_dir_name).unwrap();
+    // */
+
+    //*
+    let mut tmp_dir_name = env::temp_dir();
+    tmp_dir_name.push(&format!("gamecube_dol-{}", rand::random::<u32>()));
+    game.write_dol(&tmp_dir_name).unwrap();
+    // */
+
+
 }
+
