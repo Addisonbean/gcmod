@@ -9,4 +9,5 @@ TODO
 * Be consistent
 * Make a generic method for reading from the iso then writing to a file like in AppLoader::write\_to\_disk
 * All the consts are a mess, rename them, u64 -> u32, and figure which are necessary
+* Add a cool `1/n files extracted...` message
 

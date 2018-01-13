@@ -1,13 +1,51 @@
 extern crate gamecube_iso_assistant;
 extern crate rand;
+extern crate clap;
 
 use std::env;
 use std::process::exit;
 use std::fs::File;
+use std::path::Path;
+
+use clap::{App, Arg, SubCommand, AppSettings};
 
 use gamecube_iso_assistant::Game;
 use gamecube_iso_assistant::app_loader::AppLoader;
 
+fn main() {
+    let mut opts = App::new("gciso")
+        .subcommand(SubCommand::with_name("extract")
+            .about("Extracts a ROM's contents to disk.")
+            .arg(Arg::with_name("path_to_iso").short("i").long("iso")
+                 .takes_value(true).required(true))
+            .arg(Arg::with_name("output_dir").short("o").long("output")
+                 .takes_value(true).required(true)))
+        .setting(AppSettings::SubcommandRequired);
+    match opts.get_matches().subcommand() {
+        ("extract", Some(cmd)) => {
+            let output_path = Path::new(cmd.value_of("output_dir").unwrap());
+            let iso_path = Path::new(cmd.value_of("path_to_iso").unwrap());
+            if !iso_path.exists() {
+                eprintln!("Error: the iso {} doesn't exist.", iso_path.display());
+            } else if output_path.exists() {
+                eprintln!("Error: {} already exists.", output_path.display());
+            } else {
+                match Game::open(iso_path) {
+                    Some(ref mut game) => {
+                        if let Err(..) = game.write_files(output_path) {
+                            eprintln!("Failed to write files.");
+                        }
+                    },
+                    None => eprintln!("Invalid iso: {}.", iso_path.display()),
+                }
+            }
+            // println!("do that extracting..., {:?}", cmd.value_of("filename"));
+        },
+        _ => (),
+    }
+}
+
+/*
 fn main() {
     let filename = match env::args().nth(1) {
         Some(s) => s,
@@ -56,4 +94,5 @@ fn main() {
     println!("{:?}", AppLoader::new(&mut File::open(&tmp_name).unwrap()));
 
 }
+*/
 

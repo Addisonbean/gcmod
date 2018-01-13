@@ -7,3 +7,4 @@ authors = ["Addison Bean <addisonbean@gmail.com>"]
 [dependencies]
 byteorder = "1"
 rand = "0.4"
+clap = "2"

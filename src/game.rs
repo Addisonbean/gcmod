@@ -37,7 +37,7 @@ pub struct Game {
 impl Game {
 
     // TODO: this needs to be split up into several functions
-    pub fn open(filename: &str) -> Option<Game> {
+    pub fn open<P: AsRef<Path>>(filename: P) -> Option<Game> {
         let f = match File::open(&filename) {
             Ok(f) => f,
             Err(_) => return None,
