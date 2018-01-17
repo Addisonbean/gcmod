@@ -2,18 +2,14 @@ extern crate gamecube_iso_assistant;
 extern crate rand;
 extern crate clap;
 
-use std::env;
-use std::process::exit;
-use std::fs::File;
 use std::path::Path;
 
 use clap::{App, Arg, SubCommand, AppSettings};
 
 use gamecube_iso_assistant::Game;
-use gamecube_iso_assistant::app_loader::AppLoader;
 
 fn main() {
-    let mut opts = App::new("gciso")
+    let opts = App::new("gciso")
         .subcommand(SubCommand::with_name("extract")
             .about("Extracts a ROM's contents to disk.")
             .arg(Arg::with_name("path_to_iso").short("i").long("iso")

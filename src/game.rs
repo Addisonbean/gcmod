@@ -29,6 +29,7 @@ pub struct Game {
     pub game_id: String,
     pub title: String,
     pub fst: Vec<Entry>,
+    pub file_count: usize,
     dol_addr: u64,
     fst_addr: u64,
     iso: BufReader<File>,
@@ -70,9 +71,14 @@ impl Game {
         let mut fst = Vec::with_capacity(entry_count);
         fst.push(root);
 
+        let mut file_count = 0;
+
         for index in 1..entry_count {
             (&mut iso).take(FST_ENTRY_SIZE as u64).read_exact(&mut entry_buffer).unwrap();
-            fst.push(Entry::new(&entry_buffer, index).unwrap_or_else(|| panic!("Couldn't read fst entry {}.", index)));
+            // fst.push(Entry::new(&entry_buffer, index).unwrap_or_else(|| panic!("Couldn't read fst entry {}.", index)));
+            let e = Entry::new(&entry_buffer, index).unwrap_or_else(|| panic!("Couldn't read fst entry {}.", index));
+            if e.is_file() { file_count += 1 }
+            fst.push(e);
         }
 
         let str_tbl_addr = iso.seek(SeekFrom::Current(0)).unwrap();
@@ -85,6 +91,7 @@ impl Game {
             fst,
             game_id,
             title,
+            file_count,
             fst_addr,
             dol_addr,
             iso,
@@ -92,7 +99,11 @@ impl Game {
     }
 
     pub fn write_files<P: AsRef<Path>>(&mut self, path: P) -> io::Result<()> {
-        self.fst[0].write_with_name(path, &self.fst, &mut self.iso)
+        println!();
+        let total = self.file_count;
+        self.fst[0].write_with_name(path, &self.fst, &mut self.iso, &|c|
+            print!("\r{}/{} files written.", c, total)
+        ).map(|_| println!())
     }
 
     // DOL is the format of the main executable on a GameCube disk

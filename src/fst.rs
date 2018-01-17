@@ -83,20 +83,33 @@ impl Entry {
     }
 
     // move to Game?
-    pub fn write_with_name<P: AsRef<Path>, R: BufRead + Seek>(&self, filename: P, fst: &Vec<Entry>, iso: &mut R) -> io::Result<()> {
+    pub fn write_with_name<P, R, F>(&self, filename: P, fst: &Vec<Entry>, iso: &mut R, callback: &F) -> io::Result<usize>
+        where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
+        // where P: AsRef<Path>, R: BufRead + Seek, F: Fn(&str, usize)
+    {
+        self.write_with_name_and_count(filename, fst, iso, 0, callback)
+    }
+
+    fn write_with_name_and_count<P, R, F>(&self, filename: P, fst: &Vec<Entry>, iso: &mut R, start_count: usize, callback: &F) -> io::Result<usize>
+        where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
+        // where P: AsRef<Path>, R: BufRead + Seek, F: Fn(&str, usize)
+    {
+        let mut count = start_count;
         match self {
             &Entry::Directory(ref d) => {
                 create_dir(filename.as_ref())?;
                 for e in d.iter_contents(fst) {
-                    e.write_with_name(filename.as_ref().join(&e.info().name), fst, iso)?;
+                    count += e.write_with_name_and_count(filename.as_ref().join(&e.info().name), fst, iso, count, callback)?;
                 }
             },
             &Entry::File(ref f) => {
                 let mut output = File::create(filename.as_ref())?;
                 f.write(iso, &mut output)?;
+                count += 1;
+                callback(count);
             },
         }
-        Ok(())
+        Ok(count - start_count)
     }
 
     pub fn read_filename<R: BufRead + Seek>(&mut self, reader: &mut R, str_tbl_addr: u64) {
@@ -128,6 +141,14 @@ impl Entry {
         } else {
             None
         }
+    }
+
+    pub fn is_dir(&self) -> bool {
+        self.as_dir().is_some()
+    }
+
+    pub fn is_file(&self) -> bool {
+        self.as_file().is_some()
     }
 }
 
