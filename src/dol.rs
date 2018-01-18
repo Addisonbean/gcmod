@@ -1,4 +1,4 @@
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, Read};
 
 use byteorder::{ReadBytesExt, BigEndian};
 

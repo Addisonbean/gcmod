@@ -5,7 +5,6 @@ use std::cmp::{max, min};
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use dol::Header as DOLHeader;
 use app_loader::AppLoader;
 use fst::FST;
 
@@ -73,8 +72,13 @@ impl Game {
         })
     }
 
-    pub fn write_files<P: AsRef<Path>>(&mut self, path: P) -> io::Result<()> {
-        self.fst.write_files(path, &mut self.iso)
+    pub fn write_files<P: AsRef<Path>>(&mut self, path: P) -> io::Result<usize> {
+        let count = self.fst.file_count;
+        let res = self.fst.write_files(path, &mut self.iso, &|c|
+            print!("\r{}/{} files written.", c, count)
+        );
+        println!("\n{} bytes written.", self.fst.total_size);
+        res
     }
 
     // DOL is the format of the main executable on a GameCube disk

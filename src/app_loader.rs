@@ -27,7 +27,7 @@ impl AppLoader {
         let mut date = String::new();
         reader.take(APP_LOADER_DATE_SIZE as u64).read_to_string(&mut date)?;
         
-        reader.seek(SeekFrom::Current(6)); // it's just fluff
+        reader.seek(SeekFrom::Current(6))?; // it's just fluff
 
         let entry_point = reader.read_u32::<BigEndian>()?;
         let size = reader.read_u32::<BigEndian>()? as usize;

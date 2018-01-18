@@ -113,7 +113,7 @@ impl Entry {
     }
 
     pub fn read_filename<R: BufRead + Seek>(&mut self, reader: &mut R, str_tbl_addr: u64) {
-        let mut info = self.info_mut();
+        let info = self.info_mut();
         if info.index == 0 {
             info.name = "/".to_owned();
         } else {

@@ -14,7 +14,7 @@ pub struct FST {
      * it doesn't include directories
      */
     pub file_count: usize,
-    // pub total_size: usize,
+    pub total_size: usize,
     pub entries: Vec<Entry>,
 }
 
@@ -29,11 +29,15 @@ impl FST {
         entries.push(root);
 
         let mut file_count = 0;
+        let mut total_size = 0;
 
         for index in 1..entry_count {
             iso.take(FST_ENTRY_SIZE as u64).read_exact(&mut entry_buffer).unwrap();
             let e = Entry::new(&entry_buffer, index).unwrap_or_else(|| panic!("Couldn't read fst entry {}.", index));
-            if e.is_file() { file_count += 1 }
+            if let Some(f) = e.as_file() {
+                file_count += 1;
+                total_size += f.length;
+            }
             entries.push(e);
         }
 
@@ -45,18 +49,15 @@ impl FST {
 
         Ok(FST {
             file_count,
+            total_size,
             entries,
         })
     }
 
-    pub fn write_files<P, R>(&mut self, path: P, iso: &mut R) -> io::Result<()>
-        where P: AsRef<Path>, R: BufRead + Seek
+    pub fn write_files<P, R, F>(&mut self, path: P, iso: &mut R, callback: &F) -> io::Result<usize>
+        where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
     {
-        println!();
-        let total = self.file_count;
-        self.entries[0].write_with_name(path, &self.entries, iso, &|c|
-            print!("\r{}/{} files written.", c, total)
-        ).map(|_| println!())
+        self.entries[0].write_with_name(path, &self.entries, iso, callback)
     }
 }
 
