@@ -5,9 +5,9 @@ use std::cmp::{max, min};
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use fst::Entry;
 use dol::Header as DOLHeader;
 use app_loader::AppLoader;
+use fst::FST;
 
 // TODO: move these const's into modules
 pub const WRITE_CHUNK_SIZE: usize = 1048576; // 1048576 = 2^20 = 1MiB
@@ -22,14 +22,12 @@ const TITLE_ADDR: u64 = 0x20;
 const DOL_ADDR_PTR: u64 = 0x0420; 
 
 const FST_ADDR_PTR: u64 = 0x0424; 
-const FST_ENTRY_SIZE: usize = 12;
 
 #[derive(Debug)]
 pub struct Game {
     pub game_id: String,
     pub title: String,
-    pub fst: Vec<Entry>,
-    pub file_count: usize,
+    pub fst: FST,
     dol_addr: u64,
     fst_addr: u64,
     iso: BufReader<File>,
@@ -61,37 +59,14 @@ impl Game {
         iso.seek(SeekFrom::Start(FST_ADDR_PTR)).unwrap();
         let fst_addr = (&mut iso).read_u32::<BigEndian>().unwrap() as u64;
 
-        let mut entry_buffer: [u8; FST_ENTRY_SIZE] = [0; FST_ENTRY_SIZE];
         iso.seek(SeekFrom::Start(fst_addr)).unwrap();
 
-        (&mut iso).take(FST_ENTRY_SIZE as u64).read_exact(&mut entry_buffer).unwrap();
-        let root = Entry::new(&entry_buffer, 0).expect("Couldn't read root fst entry.");
-        let entry_count = root.as_dir().expect("Root fst wasn't a directory.").next_index;
-
-        let mut fst = Vec::with_capacity(entry_count);
-        fst.push(root);
-
-        let mut file_count = 0;
-
-        for index in 1..entry_count {
-            (&mut iso).take(FST_ENTRY_SIZE as u64).read_exact(&mut entry_buffer).unwrap();
-            // fst.push(Entry::new(&entry_buffer, index).unwrap_or_else(|| panic!("Couldn't read fst entry {}.", index)));
-            let e = Entry::new(&entry_buffer, index).unwrap_or_else(|| panic!("Couldn't read fst entry {}.", index));
-            if e.is_file() { file_count += 1 }
-            fst.push(e);
-        }
-
-        let str_tbl_addr = iso.seek(SeekFrom::Current(0)).unwrap();
-
-        for e in fst.iter_mut() {
-            e.read_filename(&mut iso, str_tbl_addr);
-        }
+        let fst = FST::new(&mut iso).unwrap();
 
         Some(Game {
             fst,
             game_id,
             title,
-            file_count,
             fst_addr,
             dol_addr,
             iso,
@@ -99,11 +74,7 @@ impl Game {
     }
 
     pub fn write_files<P: AsRef<Path>>(&mut self, path: P) -> io::Result<()> {
-        println!();
-        let total = self.file_count;
-        self.fst[0].write_with_name(path, &self.fst, &mut self.iso, &|c|
-            print!("\r{}/{} files written.", c, total)
-        ).map(|_| println!())
+        self.fst.write_files(path, &mut self.iso)
     }
 
     // DOL is the format of the main executable on a GameCube disk
