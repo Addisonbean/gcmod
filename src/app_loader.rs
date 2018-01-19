@@ -1,11 +1,9 @@
-use std::io::{self, Read, Seek, SeekFrom, Write};
-use std::fs::File;
+use std::io::{self, Read, Seek, SeekFrom};
 use std::path::Path;
-use std::cmp::min;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use ::WRITE_CHUNK_SIZE;
+use ::write_section_to_file;
 
 pub const APP_LOADER_OFFSET: u64 = 0x2440;
 const APP_LOADER_DATE_SIZE: usize = 10;
@@ -45,25 +43,9 @@ impl AppLoader {
         where R: Read + Seek, P: AsRef<Path>
     {
         iso.seek(SeekFrom::Start(APP_LOADER_SIZE_ADDR))?;
-        let size = iso.read_u32::<BigEndian>()?;
+        let size = iso.read_u32::<BigEndian>()? as usize;
         iso.seek(SeekFrom::Start(APP_LOADER_OFFSET))?;
-
-        let mut f = File::create(path)?;
-
-        let mut buf: [u8; WRITE_CHUNK_SIZE] = [0; WRITE_CHUNK_SIZE];
-        let mut bytes_left = size as usize;
-
-        while bytes_left > 0 {
-            let bytes_to_read = min(bytes_left, WRITE_CHUNK_SIZE) as u64;
-
-            let bytes_read = iso.take(bytes_to_read).read(&mut buf)?;
-            if bytes_read == 0 { break }
-            f.write_all(&buf[..bytes_read])?;
-
-            bytes_left -= bytes_read;
-        }
-
-        Ok(())
+        write_section_to_file(iso, size, path)
     }
 }
 

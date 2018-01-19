@@ -1,11 +1,11 @@
 use std::fs::File;
 use std::path::Path;
-use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
-use std::cmp::{max, min};
+use std::io::{self, BufReader, Read, Seek, SeekFrom};
+use std::cmp::max;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use ::WRITE_CHUNK_SIZE;
+use ::write_section_to_file;
 use app_loader::AppLoader;
 use dol::DOL_OFFSET_OFFSET;
 use fst::{FST, FST_OFFSET_OFFSET};
@@ -104,22 +104,7 @@ impl Game {
 
         self.iso.seek(SeekFrom::Start(self.dol_addr))?;
 
-        let mut f = File::create(path)?;
-
-        let mut buf: [u8; WRITE_CHUNK_SIZE] = [0; WRITE_CHUNK_SIZE];
-        let mut bytes_left = dol_size as usize;
-
-        while bytes_left > 0 {
-            let bytes_to_read = min(bytes_left, WRITE_CHUNK_SIZE) as u64;
-
-            let bytes_read = (&mut self.iso).take(bytes_to_read).read(&mut buf)?;
-            if bytes_read == 0 { break }
-            f.write_all(&buf[..bytes_read])?;
-
-            bytes_left -= bytes_read;
-        }
-
-        Ok(())
+        write_section_to_file(&mut self.iso, dol_size as usize, path)
     }
 
     pub fn write_app_loader<P>(&mut self, path: P) -> io::Result<()>

@@ -1,11 +1,10 @@
-use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
-use std::cmp::min;
-use std::fs::{File, create_dir};
+use std::io::{self, BufRead, Seek, SeekFrom};
+use std::fs::create_dir;
 use std::path::Path;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use ::WRITE_CHUNK_SIZE;
+use ::write_section_to_file;
 
 pub const ENTRY_SIZE: usize = 12;
 
@@ -105,8 +104,9 @@ impl Entry {
                 }
             },
             &Entry::File(ref f) => {
-                let mut output = File::create(filename.as_ref())?;
-                f.write(iso, &mut output)?;
+                // let mut output = File::create(filename.as_ref())?;
+                // f.write(iso, &mut output)?;
+                f.write(iso, filename)?;
                 count += 1;
                 callback(count);
             },
@@ -155,26 +155,12 @@ impl Entry {
 }
 
 impl FileEntry {
-    // TODO: does this have to be BufRead, rather than Read? Should it?
-    // Also I may want to rename this, maybe to `write_from_iso` or `write_from`,
-    // or something else that explains why there is a `Reader` parameter.
-    pub fn write<R, W>(&self, reader: &mut R, writer: &mut W) -> io::Result<()>
-        where R: BufRead + Seek, W: Write
+    // TODO: rename this
+    pub fn write<R, P>(&self, reader: &mut R, filename: P) -> io::Result<()>
+        where R: BufRead + Seek, P: AsRef<Path>
     {
         reader.seek(SeekFrom::Start(self.file_offset))?;
-        let mut buf: [u8; WRITE_CHUNK_SIZE] = [0; WRITE_CHUNK_SIZE];
-        let mut bytes_left = self.length;
-
-        while bytes_left > 0 {
-            let bytes_to_read = min(bytes_left, WRITE_CHUNK_SIZE) as u64;
-
-            let bytes_read = reader.take(bytes_to_read).read(&mut buf)?;
-            if bytes_read == 0 { break }
-            writer.write_all(&buf[..bytes_read])?;
-
-            bytes_left -= bytes_read;
-        }
-        Ok(())
+        write_section_to_file(reader, self.length, filename)
     }
 }
 

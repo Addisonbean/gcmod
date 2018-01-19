@@ -7,9 +7,7 @@ TODO
 * Make an API (it'd be a separate repo of course)
 
 Refactoring
-* Use u32 instead of u64?
 * Only make this public if they need to be
 * Be consistent
-* Make a generic method for reading from the iso then writing to a file like in AppLoader::write\_to\_disk
 * Rename stuff
 
