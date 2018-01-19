@@ -5,7 +5,8 @@ use std::path::Path;
 
 use self::entry::Entry;
 
-const FST_ENTRY_SIZE: usize = 12;
+use self::entry::ENTRY_SIZE;
+pub const FST_OFFSET_OFFSET: u64 = 0x0424; 
 
 #[derive(Debug)]
 pub struct FST {
@@ -20,8 +21,8 @@ pub struct FST {
 
 impl FST {
     pub fn new<R: BufRead + Seek>(iso: &mut R) -> io::Result<FST> {
-        let mut entry_buffer: [u8; FST_ENTRY_SIZE] = [0; FST_ENTRY_SIZE];
-        iso.take(FST_ENTRY_SIZE as u64).read_exact(&mut entry_buffer).unwrap();
+        let mut entry_buffer: [u8; ENTRY_SIZE] = [0; ENTRY_SIZE];
+        iso.take(ENTRY_SIZE as u64).read_exact(&mut entry_buffer).unwrap();
         let root = Entry::new(&entry_buffer, 0).expect("Couldn't read root fst entry.");
         let entry_count = root.as_dir().expect("Root fst wasn't a directory.").next_index;
 
@@ -32,7 +33,7 @@ impl FST {
         let mut total_size = 0;
 
         for index in 1..entry_count {
-            iso.take(FST_ENTRY_SIZE as u64).read_exact(&mut entry_buffer).unwrap();
+            iso.take(ENTRY_SIZE as u64).read_exact(&mut entry_buffer).unwrap();
             let e = Entry::new(&entry_buffer, index).unwrap_or_else(|| panic!("Couldn't read fst entry {}.", index));
             if let Some(f) = e.as_file() {
                 file_count += 1;

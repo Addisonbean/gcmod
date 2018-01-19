@@ -7,16 +7,16 @@ use byteorder::{ReadBytesExt, BigEndian};
 
 use ::WRITE_CHUNK_SIZE;
 
-pub const APP_LOADER_ADDR: u64 = 0x2440;
-pub const APP_LOADER_DATE_SIZE: usize = 10;
-pub const APP_LOADER_ENTRY_POINT_ADDR: u64 = 0x2450;
-pub const APP_LOADER_ENTRY_POINT_SIZE: u64 = 0xA0;
-pub const APP_LOADER_SIZE_ADDR: u64 = 0x2454;
+pub const APP_LOADER_OFFSET: u64 = 0x2440;
+const APP_LOADER_DATE_SIZE: usize = 10;
+const APP_LOADER_ENTRY_POINT_ADDR: u64 = 0x2450;
+const APP_LOADER_ENTRY_POINT_SIZE: u64 = 0xA0;
+const APP_LOADER_SIZE_ADDR: u64 = 0x2454;
 
 #[derive(Debug)]
 pub struct AppLoader {
     pub date: String,
-    pub entry_point: u32,
+    pub entry_point: u64,
     pub size: usize,
     pub trailer_size: usize,
     // code: Vec<u8>,
@@ -29,7 +29,7 @@ impl AppLoader {
         
         reader.seek(SeekFrom::Current(6))?; // it's just fluff
 
-        let entry_point = reader.read_u32::<BigEndian>()?;
+        let entry_point = reader.read_u32::<BigEndian>()? as u64;
         let size = reader.read_u32::<BigEndian>()? as usize;
         let trailer_size = reader.read_u32::<BigEndian>()? as usize;
 
@@ -46,7 +46,7 @@ impl AppLoader {
     {
         iso.seek(SeekFrom::Start(APP_LOADER_SIZE_ADDR))?;
         let size = iso.read_u32::<BigEndian>()?;
-        iso.seek(SeekFrom::Start(APP_LOADER_ADDR))?;
+        iso.seek(SeekFrom::Start(APP_LOADER_OFFSET))?;
 
         let mut f = File::create(path)?;
 

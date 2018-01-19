@@ -5,22 +5,17 @@ use std::cmp::{max, min};
 
 use byteorder::{ReadBytesExt, BigEndian};
 
+use ::WRITE_CHUNK_SIZE;
 use app_loader::AppLoader;
-use fst::FST;
-
-// TODO: move these const's into modules
-pub const WRITE_CHUNK_SIZE: usize = 1048576; // 1048576 = 2^20 = 1MiB
+use dol::DOL_OFFSET_OFFSET;
+use fst::{FST, FST_OFFSET_OFFSET};
 
 const GAMEID_SIZE: usize = 6;
-const GAMEID_ADDR: u64 = 0;
+const GAMEID_OFFSET: u64 = 0;
 
 // TODO: other sources suggest this size is larger, look into that...
 const TITLE_SIZE: usize = 0x60;
-const TITLE_ADDR: u64 = 0x20;
-
-const DOL_ADDR_PTR: u64 = 0x0420; 
-
-const FST_ADDR_PTR: u64 = 0x0424; 
+const TITLE_OFFSET: u64 = 0x20;
 
 #[derive(Debug)]
 pub struct Game {
@@ -44,18 +39,18 @@ impl Game {
         let mut game_id = String::with_capacity(GAMEID_SIZE);
         let mut title = String::with_capacity(TITLE_SIZE);
 
-        iso.seek(SeekFrom::Start(GAMEID_ADDR)).unwrap();
+        iso.seek(SeekFrom::Start(GAMEID_OFFSET)).unwrap();
         (&mut iso).take(GAMEID_SIZE as u64).read_to_string(&mut game_id).unwrap();
 
-        iso.seek(SeekFrom::Start(TITLE_ADDR)).unwrap();
+        iso.seek(SeekFrom::Start(TITLE_OFFSET)).unwrap();
         (&mut iso).take(TITLE_SIZE as u64).read_to_string(&mut title).unwrap();
 
         // do some other stuff then:
 
-        iso.seek(SeekFrom::Start(DOL_ADDR_PTR)).unwrap();
+        iso.seek(SeekFrom::Start(DOL_OFFSET_OFFSET)).unwrap();
         let dol_addr = (&mut iso).read_u32::<BigEndian>().unwrap() as u64;
 
-        iso.seek(SeekFrom::Start(FST_ADDR_PTR)).unwrap();
+        iso.seek(SeekFrom::Start(FST_OFFSET_OFFSET)).unwrap();
         let fst_addr = (&mut iso).read_u32::<BigEndian>().unwrap() as u64;
 
         iso.seek(SeekFrom::Start(fst_addr)).unwrap();

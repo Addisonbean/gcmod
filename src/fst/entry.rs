@@ -5,7 +5,9 @@ use std::path::Path;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-const WRITE_CHUNK_SIZE: usize = 1048576; // 1048576 = 2^20 = 1MiB
+use ::WRITE_CHUNK_SIZE;
+
+pub const ENTRY_SIZE: usize = 12;
 
 #[derive(Debug)]
 pub struct EntryInfo {
