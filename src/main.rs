@@ -28,7 +28,7 @@ fn main() {
             } else {
                 match Game::open(iso_path) {
                     Some(ref mut game) => {
-                        if let Err(..) = game.write_files(output_path) {
+                        if let Err(..) = game.extract(output_path) {
                             eprintln!("Failed to write files.");
                         }
                     },

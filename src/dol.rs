@@ -1,6 +1,10 @@
-use std::io::{self, Read};
+use std::io::{self, Read, Seek, SeekFrom};
+use std::path::Path;
+use std::cmp::max;
 
 use byteorder::{ReadBytesExt, BigEndian};
+
+use ::write_section_to_file;
 
 const TEXT_SEG_COUNT: usize = 7;
 const DATA_SEG_COUNT: usize = 11;
@@ -48,6 +52,39 @@ impl Header {
             text_segments,
             data_segments,
         })
+    }
+
+    pub fn write_to_disk<R, P>(iso: &mut R, dol_addr: u64, path: P) -> io::Result<()>
+        where R: Read + Seek, P: AsRef<Path>
+    {
+        iso.seek(SeekFrom::Current(dol_addr as i64))?;
+        let mut dol_size = 0;
+
+        // 7 code segments
+        for i in 0..7 {
+            iso.seek(SeekFrom::Start(dol_addr + 0x00 + i * 4))?;
+            let seg_offset = iso.read_u32::<BigEndian>()?;
+
+            iso.seek(SeekFrom::Start(dol_addr + 0x90 + i * 4))?;
+            let seg_size = iso.read_u32::<BigEndian>()?;
+
+            dol_size = max(seg_offset + seg_size, dol_size);
+        }
+
+        // 11 data segments
+        for i in 0..11 {
+            iso.seek(SeekFrom::Start(dol_addr + 0x1c + i * 4))?;
+            let seg_offset = iso.read_u32::<BigEndian>()?;
+
+            iso.seek(SeekFrom::Start(dol_addr + 0xac + i * 4))?;
+            let seg_size = iso.read_u32::<BigEndian>()?;
+
+            dol_size = max(seg_offset + seg_size, dol_size);
+        }
+
+        iso.seek(SeekFrom::Start(dol_addr))?;
+
+        write_section_to_file(iso, dol_size as usize, path)
     }
 }
 

@@ -1,4 +1,5 @@
 TODO
+* Add more subcommands
 * Put it on codereview.stackexchange.com
 * Use expect more, unwrap less
 * More error handling, especially for corrupt isos
@@ -7,7 +8,7 @@ TODO
 * Make an API (it'd be a separate repo of course)
 
 Refactoring
-* Only make this public if they need to be
+* Only make stuff public if it needs to be
 * Be consistent
 * Rename stuff
 

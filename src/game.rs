@@ -1,13 +1,11 @@
-use std::fs::File;
+use std::fs::{create_dir, File};
 use std::path::Path;
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
-use std::cmp::max;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use ::write_section_to_file;
 use app_loader::AppLoader;
-use dol::DOL_OFFSET_OFFSET;
+use dol::{Header, DOL_OFFSET_OFFSET};
 use fst::{FST, FST_OFFSET_OFFSET};
 
 const GAMEID_SIZE: usize = 6;
@@ -30,7 +28,9 @@ pub struct Game {
 impl Game {
 
     // TODO: this needs to be split up into several functions
-    pub fn open<P: AsRef<Path>>(filename: P) -> Option<Game> {
+    pub fn open<P>(filename: P) -> Option<Game>
+        where P: AsRef<Path>
+    {
         let f = match File::open(&filename) {
             Ok(f) => f,
             Err(_) => return None,
@@ -67,7 +67,19 @@ impl Game {
         })
     }
 
-    pub fn write_files<P: AsRef<Path>>(&mut self, path: P) -> io::Result<usize> {
+    pub fn extract<P>(&mut self, path: P) -> io::Result<()>
+        where P: AsRef<Path>
+    {
+        create_dir(path.as_ref())?;
+        self.write_app_loader(path.as_ref().join("app_loader.bin"))?;
+        self.write_dol(path.as_ref().join("boot.dol"))?;
+        self.write_files(path.as_ref().join("file_system"))?;
+        Ok(())
+    }
+
+    pub fn write_files<P>(&mut self, path: P) -> io::Result<usize>
+        where P: AsRef<Path>
+    {
         let count = self.fst.file_count;
         let res = self.fst.write_files(path, &mut self.iso, &|c|
             print!("\r{}/{} files written.", c, count)
@@ -77,39 +89,17 @@ impl Game {
     }
 
     // DOL is the format of the main executable on a GameCube disk
-    pub fn write_dol<P: AsRef<Path>>(&mut self, path: P) -> io::Result<()> {
-        let mut dol_size = 0;
-
-        // 7 code segments
-        for i in 0..7 {
-            self.iso.seek(SeekFrom::Start(self.dol_addr + 0x00 + i * 4))?;
-            let seg_offset = self.iso.read_u32::<BigEndian>()?;
-
-            self.iso.seek(SeekFrom::Start(self.dol_addr + 0x90 + i * 4))?;
-            let seg_size = self.iso.read_u32::<BigEndian>()?;
-
-            dol_size = max(seg_offset + seg_size, dol_size);
-        }
-
-        // 11 data segments
-        for i in 0..11 {
-            self.iso.seek(SeekFrom::Start(self.dol_addr + 0x1c + i * 4))?;
-            let seg_offset = self.iso.read_u32::<BigEndian>()?;
-
-            self.iso.seek(SeekFrom::Start(self.dol_addr + 0xac + i * 4))?;
-            let seg_size = self.iso.read_u32::<BigEndian>()?;
-
-            dol_size = max(seg_offset + seg_size, dol_size);
-        }
-
-        self.iso.seek(SeekFrom::Start(self.dol_addr))?;
-
-        write_section_to_file(&mut self.iso, dol_size as usize, path)
+    pub fn write_dol<P>(&mut self, path: P) -> io::Result<()>
+        where P: AsRef<Path>
+    {
+        println!("Writing DOL header...");
+        Header::write_to_disk(&mut self.iso, self.dol_addr, path)
     }
 
     pub fn write_app_loader<P>(&mut self, path: P) -> io::Result<()>
         where P: AsRef<Path>
     {
+        println!("Writing app loader...");
         AppLoader::write_to_disk(&mut self.iso, path)
     }
 }
