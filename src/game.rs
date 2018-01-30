@@ -5,7 +5,7 @@ use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use byteorder::{ReadBytesExt, BigEndian};
 
 use app_loader::AppLoader;
-use dol::{Header, DOL_OFFSET_OFFSET};
+use dol::{Header as DOLHeader, DOL_OFFSET_OFFSET};
 use fst::{FST, FST_OFFSET_OFFSET};
 
 const GAMEID_SIZE: usize = 6;
@@ -20,47 +20,48 @@ pub struct Game {
     pub game_id: String,
     pub title: String,
     pub fst: FST,
-    dol_addr: u64,
-    fst_addr: u64,
-    iso: BufReader<File>,
+    pub dol: DOLHeader,
+    pub fst_addr: u64,
+    pub dol_addr: u64,
+    pub iso: BufReader<File>,
 }
 
 impl Game {
 
-    // TODO: this needs to be split up into several functions
-    pub fn open<P>(filename: P) -> Option<Game>
+    pub fn open<P>(filename: P) -> io::Result<Game>
         where P: AsRef<Path>
     {
-        let f = match File::open(&filename) {
-            Ok(f) => f,
-            Err(_) => return None,
-        };
+        let f = File::open(&filename)?;
         let mut iso = BufReader::new(f);
         let mut game_id = String::with_capacity(GAMEID_SIZE);
         let mut title = String::with_capacity(TITLE_SIZE);
 
-        iso.seek(SeekFrom::Start(GAMEID_OFFSET)).unwrap();
+        iso.seek(SeekFrom::Start(GAMEID_OFFSET))?;
         (&mut iso).take(GAMEID_SIZE as u64).read_to_string(&mut game_id).unwrap();
 
-        iso.seek(SeekFrom::Start(TITLE_OFFSET)).unwrap();
+        iso.seek(SeekFrom::Start(TITLE_OFFSET))?;
         (&mut iso).take(TITLE_SIZE as u64).read_to_string(&mut title).unwrap();
 
         // do some other stuff then:
 
-        iso.seek(SeekFrom::Start(DOL_OFFSET_OFFSET)).unwrap();
-        let dol_addr = (&mut iso).read_u32::<BigEndian>().unwrap() as u64;
+        iso.seek(SeekFrom::Start(DOL_OFFSET_OFFSET))?;
+        let dol_addr = (&mut iso).read_u32::<BigEndian>()? as u64;
 
-        iso.seek(SeekFrom::Start(FST_OFFSET_OFFSET)).unwrap();
-        let fst_addr = (&mut iso).read_u32::<BigEndian>().unwrap() as u64;
+        iso.seek(SeekFrom::Start(FST_OFFSET_OFFSET))?;
+        let fst_addr = (&mut iso).read_u32::<BigEndian>()? as u64;
 
-        iso.seek(SeekFrom::Start(fst_addr)).unwrap();
+        iso.seek(SeekFrom::Start(fst_addr))?;
 
-        let fst = FST::new(&mut iso).unwrap();
+        let fst = FST::new(&mut iso)?;
 
-        Some(Game {
-            fst,
+        iso.seek(SeekFrom::Start(dol_addr))?;
+        let dol = DOLHeader::new(&mut iso)?;
+
+        Ok(Game {
             game_id,
             title,
+            fst,
+            dol,
             fst_addr,
             dol_addr,
             iso,
@@ -93,7 +94,7 @@ impl Game {
         where P: AsRef<Path>
     {
         println!("Writing DOL header...");
-        Header::write_to_disk(&mut self.iso, self.dol_addr, path)
+        DOLHeader::write_to_disk(&mut self.iso, self.dol_addr, path)
     }
 
     pub fn write_app_loader<P>(&mut self, path: P) -> io::Result<()>
@@ -101,6 +102,15 @@ impl Game {
     {
         println!("Writing app loader...");
         AppLoader::write_to_disk(&mut self.iso, path)
+    }
+
+    pub fn print_info(&self) {
+        println!("Title: {}", self.title);
+        println!("GameID: {}", self.game_id);
+        println!("FST offset: {}", self.fst_addr);
+        println!("FST size: {} bytes", self.fst.entries.len() * 12);
+        println!("Main DOL offset: {}", self.dol_addr);
+        println!("Main DOL size: {} bytes", self.dol.dol_size);
     }
 }
 
