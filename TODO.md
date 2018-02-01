@@ -13,5 +13,5 @@ Refactoring
 * Only make stuff public if it needs to be
 * Be consistent
 * Rename stuff
-* main.rs has some very repetitive code
+* main.rs has some very repetitive code. Move stuff into functions. Make it look nice
 

@@ -8,6 +8,8 @@ use clap::{App, Arg, SubCommand, AppSettings};
 
 use gamecube_iso_assistant::Game;
 
+use gamecube_iso_assistant::disassembler::Disassembler;
+
 fn main() {
     let opts = App::new("gciso")
         .subcommand(SubCommand::with_name("extract")
