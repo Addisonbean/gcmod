@@ -8,10 +8,11 @@ TODO
 * Make an API (it'd be a separate repo of course)
 * It's easy to call something like AppLoader::new forgetting to seek to the right spot first
 * Add an option for "info" to display values in hexadecimal
+* Add a command to disassemble an iso, plus an option to only disassemble a given dol file
+* Add options or commands specifically for apploaders, dol files, etc... so the whole iso isn't needed
 
 Refactoring
 * Only make stuff public if it needs to be
 * Be consistent
 * Rename stuff
-* main.rs has some very repetitive code. Move stuff into functions. Make it look nice
 
