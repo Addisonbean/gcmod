@@ -7,8 +7,6 @@ use byteorder::{BigEndian, ReadBytesExt};
 
 use dol::Segment;
 
-const DOL_CODE_START: usize = 0x100;
-
 pub struct Disassembler<'a> {
     objdump_path: &'a OsStr,
 }

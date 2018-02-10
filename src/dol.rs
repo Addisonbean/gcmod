@@ -15,6 +15,16 @@ pub enum SegmentType {
     Text, Data
 }
 
+impl SegmentType {
+    pub fn to_string(self, seg_num: usize) -> String {
+        use self::SegmentType::*;
+        match self {
+            Text => format!(".text{}", seg_num),
+            Data => format!(".data{}", seg_num),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct Segment {
     // the start of the segment is relative to the beginning of the DOL section

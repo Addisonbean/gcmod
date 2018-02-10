@@ -81,7 +81,7 @@ fn disassemble_dol<P>(input: P)
         let mut addr = 0;
         for (i, s) in header.text_segments.iter().enumerate() {
             if s.size == 0 { continue }
-            println!(".text{}", i);
+            println!("{}", s.seg_type.to_string(i));
 
             let disasm = disassembler.disasm(tmp_file.path(), s).expect("Failed to open DOL section");
             for instr in disasm {
