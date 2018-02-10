@@ -1,6 +1,4 @@
 TODO
-* Pass the right options to objdump so the offsets are correct
-* ...
 * Add more subcommands
 * Put it on codereview.stackexchange.com
 * Use expect more, unwrap less

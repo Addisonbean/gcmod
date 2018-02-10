@@ -24,10 +24,15 @@ impl<'a> Disassembler<'a> {
     pub fn disasm<P>(&self, file_path: P, segment: &Segment) -> io::Result<DisasmIter>
         where P: AsRef<OsStr>
     {
+
+        let offset = segment.loading_address - segment.start;
+        let start = segment.start + offset;
+        let end = start + segment.size;
         let output = Command::new(self.objdump_path)
             .args(&["-mpowerpc", "-D", "-b", "binary", "-EB", "-M", "750cl",
-                "--start-address", &segment.start.to_string(),
-                "--stop-address", &(segment.start + segment.size).to_string(),
+                "--start-address", &start.to_string(),
+                "--stop-address", &end.to_string(),
+                "--adjust-vma", &offset.to_string(),
                 ])
             .arg(file_path.as_ref())
             .output()?;
