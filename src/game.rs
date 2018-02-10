@@ -1,6 +1,6 @@
 use std::fs::{create_dir, File};
 use std::path::Path;
-use std::io::{self, BufReader, Read, Seek, SeekFrom};
+use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
 
 use byteorder::{ReadBytesExt, BigEndian};
 
@@ -19,6 +19,7 @@ const TITLE_OFFSET: u64 = 0x20;
 pub struct Game {
     pub game_id: String,
     pub title: String,
+    pub app_loader: AppLoader,
     pub fst: FST,
     pub dol: DOLHeader,
     pub fst_addr: u64,
@@ -57,9 +58,12 @@ impl Game {
         iso.seek(SeekFrom::Start(dol_addr))?;
         let dol = DOLHeader::new(&mut iso)?;
 
+        let app_loader = AppLoader::new(&mut iso)?;
+
         Ok(Game {
             game_id,
             title,
+            app_loader,
             fst,
             dol,
             fst_addr,
@@ -72,8 +76,13 @@ impl Game {
         where P: AsRef<Path>
     {
         create_dir(path.as_ref())?;
-        self.write_app_loader(path.as_ref().join("app_loader.bin"))?;
-        self.write_dol(path.as_ref().join("boot.dol"))?;
+
+        let mut app_loader_file = File::create(path.as_ref().join("app_loader.bin"))?;
+        self.write_app_loader(&mut app_loader_file)?;
+
+        let mut dol_file = File::create(path.as_ref().join("boot.dol"))?;
+        self.write_dol(&mut dol_file)?;
+
         self.write_files(path.as_ref().join("file_system"))?;
         Ok(())
     }
@@ -90,18 +99,18 @@ impl Game {
     }
 
     // DOL is the format of the main executable on a GameCube disk
-    pub fn write_dol<P>(&mut self, path: P) -> io::Result<()>
-        where P: AsRef<Path>
+    pub fn write_dol<W>(&mut self, file: &mut W) -> io::Result<()>
+        where W: Write
     {
         println!("Writing DOL header...");
-        DOLHeader::write_to_disk(&mut self.iso, self.dol_addr, path)
+        DOLHeader::write_to_disk(&mut self.iso, self.dol_addr, file)
     }
 
-    pub fn write_app_loader<P>(&mut self, path: P) -> io::Result<()>
-        where P: AsRef<Path>
+    pub fn write_app_loader<W>(&mut self, file: &mut W) -> io::Result<()>
+        where W: Write
     {
         println!("Writing app loader...");
-        AppLoader::write_to_disk(&mut self.iso, path)
+        AppLoader::write_to_disk(&mut self.iso, file)
     }
 
     pub fn print_info(&self) {
@@ -110,7 +119,7 @@ impl Game {
         println!("FST offset: {}", self.fst_addr);
         println!("FST size: {} bytes", self.fst.entries.len() * 12);
         println!("Main DOL offset: {}", self.dol_addr);
-        println!("Main DOL size: {} bytes", self.dol.dol_size);
+        println!("Main DOL entry point: {} bytes", self.dol.entry_point);
     }
 }
 

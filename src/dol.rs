@@ -1,21 +1,47 @@
-use std::io::{self, Read, Seek, SeekFrom};
-use std::path::Path;
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::cmp::max;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use ::write_section_to_file;
+use ::write_section;
 
 const TEXT_SEG_COUNT: usize = 7;
 const DATA_SEG_COUNT: usize = 11;
 
 pub const DOL_OFFSET_OFFSET: u64 = 0x0420; 
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug)]
+pub enum SegmentType {
+    Text, Data
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct Segment {
     // the start of the segment is relative to the beginning of the DOL section
     pub start: u64,
     pub size: u64,
+    pub loading_address: u64,
+    pub seg_type: SegmentType,
+}
+
+impl Segment {
+    pub fn text() -> Segment {
+        Segment {
+            start: 0,
+            size: 0,
+            loading_address: 0,
+            seg_type: SegmentType::Text,
+        }
+    }
+
+    pub fn data() -> Segment {
+        Segment {
+            start: 0,
+            size: 0,
+            loading_address: 0,
+            seg_type: SegmentType::Data,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -23,12 +49,13 @@ pub struct Header {
     pub text_segments: [Segment; TEXT_SEG_COUNT],
     pub data_segments: [Segment; DATA_SEG_COUNT],
     pub dol_size: usize,
+    pub entry_point: u64,
 }
 
 impl Header {
     pub fn new<F: Read + Seek>(file: &mut F) -> io::Result<Header> {
-        let mut text_segments = [Segment::default(); TEXT_SEG_COUNT];
-        let mut data_segments = [Segment::default(); DATA_SEG_COUNT];
+        let mut text_segments = [Segment::text(); TEXT_SEG_COUNT];
+        let mut data_segments = [Segment::data(); DATA_SEG_COUNT];
         {
             let mut segs = [
                 &mut text_segments[..],
@@ -41,7 +68,11 @@ impl Header {
                 }
             }
 
-            file.seek(SeekFrom::Current(18 * 4))?;
+            for ref mut seg_type in segs.iter_mut() {
+                for i in 0..seg_type.len() {
+                    seg_type[i].loading_address = file.read_u32::<BigEndian>()? as u64;
+                }
+            }
 
             for ref mut seg_type in segs.iter_mut() {
                 for i in 0..seg_type.len() {
@@ -50,6 +81,9 @@ impl Header {
             }
         }
 
+        file.seek(SeekFrom::Current(8))?;
+        let entry_point = file.read_u32::<BigEndian>()? as u64;
+
         let dol_size = text_segments.iter().chain(data_segments.iter())
             .map(|s| s.start + s.size).max().unwrap() as usize;
 
@@ -57,11 +91,12 @@ impl Header {
             text_segments,
             data_segments,
             dol_size,
+            entry_point,
         })
     }
 
-    pub fn write_to_disk<R, P>(iso: &mut R, dol_addr: u64, path: P) -> io::Result<()>
-        where R: Read + Seek, P: AsRef<Path>
+    pub fn write_to_disk<R, W>(iso: &mut R, dol_addr: u64, file: &mut W) -> io::Result<()>
+        where R: Read + Seek, W: Write
     {
         iso.seek(SeekFrom::Start(dol_addr))?;
         let mut dol_size = 0;
@@ -90,7 +125,7 @@ impl Header {
 
         iso.seek(SeekFrom::Start(dol_addr))?;
 
-        write_section_to_file(iso, dol_size as usize, path)
+        write_section(iso, dol_size as usize, file)
     }
 }
 

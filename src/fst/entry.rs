@@ -1,10 +1,10 @@
-use std::io::{self, BufRead, Seek, SeekFrom};
-use std::fs::create_dir;
+use std::io::{self, BufRead, Seek, SeekFrom, Write};
+use std::fs::{File, create_dir};
 use std::path::Path;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use ::write_section_to_file;
+use ::write_section;
 
 pub const ENTRY_SIZE: usize = 12;
 
@@ -106,7 +106,8 @@ impl Entry {
             &Entry::File(ref f) => {
                 // let mut output = File::create(filename.as_ref())?;
                 // f.write(iso, &mut output)?;
-                f.write(iso, filename)?;
+                let mut out = File::create(filename)?;
+                f.write(iso, &mut out)?;
                 count += 1;
                 callback(count);
             },
@@ -156,11 +157,11 @@ impl Entry {
 
 impl FileEntry {
     // TODO: rename this
-    pub fn write<R, P>(&self, reader: &mut R, filename: P) -> io::Result<()>
-        where R: BufRead + Seek, P: AsRef<Path>
+    pub fn write<R, W>(&self, reader: &mut R, file: &mut W) -> io::Result<()>
+        where R: BufRead + Seek, W: Write
     {
         reader.seek(SeekFrom::Start(self.file_offset))?;
-        write_section_to_file(reader, self.length, filename)
+        write_section(reader, self.length, file)
     }
 }
 

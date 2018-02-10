@@ -1,9 +1,8 @@
-use std::io::{self, Read, Seek, SeekFrom};
-use std::path::Path;
+use std::io::{self, Read, Seek, SeekFrom, Write};
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use ::write_section_to_file;
+use ::write_section;
 
 pub const APP_LOADER_OFFSET: u64 = 0x2440;
 const APP_LOADER_DATE_SIZE: usize = 10;
@@ -17,11 +16,11 @@ pub struct AppLoader {
     pub entry_point: u64,
     pub size: usize,
     pub trailer_size: usize,
-    // code: Vec<u8>,
 }
 
 impl AppLoader {
     pub fn new<R: Read + Seek>(reader: &mut R) -> io::Result<AppLoader> {
+        reader.seek(SeekFrom::Start(APP_LOADER_OFFSET))?;
         let mut date = String::new();
         reader.take(APP_LOADER_DATE_SIZE as u64).read_to_string(&mut date)?;
         
@@ -39,13 +38,13 @@ impl AppLoader {
         })
     }
 
-    pub fn write_to_disk<R, P>(iso: &mut R, path: P) -> io::Result<()>
-        where R: Read + Seek, P: AsRef<Path>
+    pub fn write_to_disk<R, W>(iso: &mut R, file: &mut W) -> io::Result<()>
+        where R: Read + Seek, W: Write
     {
         iso.seek(SeekFrom::Start(APP_LOADER_SIZE_ADDR))?;
         let size = iso.read_u32::<BigEndian>()? as usize;
         iso.seek(SeekFrom::Start(APP_LOADER_OFFSET))?;
-        write_section_to_file(iso, size, path)
+        write_section(iso, size, file)
     }
 }
 

@@ -1,8 +1,6 @@
 extern crate byteorder;
 
 use std::io::{self, Read, Write};
-use std::fs::File;
-use std::path::Path;
 use std::cmp::min;
 
 mod game;
@@ -15,11 +13,9 @@ pub mod disassembler;
 
 const WRITE_CHUNK_SIZE: usize = 1048576; // 1048576 = 2^20 = 1MiB
 
-pub fn write_section_to_file<R, P>(iso: &mut R, bytes: usize, path: P) -> io::Result<()>
-    where R: Read, P: AsRef<Path>
+pub fn write_section<R, W>(iso: &mut R, bytes: usize, file: &mut W) -> io::Result<()>
+    where R: Read, W: Write
 {
-    let mut f = File::create(path)?;
-
     let mut buf: [u8; WRITE_CHUNK_SIZE] = [0; WRITE_CHUNK_SIZE];
     let mut bytes_left = bytes;
 
@@ -28,7 +24,7 @@ pub fn write_section_to_file<R, P>(iso: &mut R, bytes: usize, path: P) -> io::Re
 
         let bytes_read = iso.take(bytes_to_read).read(&mut buf)?;
         if bytes_read == 0 { break }
-        f.write_all(&buf[..bytes_read])?;
+        file.write_all(&buf[..bytes_read])?;
 
         bytes_left -= bytes_read;
     }

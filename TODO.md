@@ -1,4 +1,8 @@
 TODO
+* Pass the right options to objdump so the offsets are correct
+* Try making Segment take a generic, so the type is actually a type parameter (then add the derive default back)
+	* Then clean up disassemble\_dol
+* ...
 * Add more subcommands
 * Put it on codereview.stackexchange.com
 * Use expect more, unwrap less
