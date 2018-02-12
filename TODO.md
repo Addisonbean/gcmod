@@ -1,4 +1,5 @@
 TODO
+* Make Entry::new return a Result, not Option
 * Add more subcommands
 * Put it on codereview.stackexchange.com
 * Use expect more, unwrap less
@@ -10,9 +11,11 @@ TODO
 * Add an option for "info" to display values in hexadecimal
 * Add a command to disassemble an iso, plus an option to only disassemble a given dol file
 * Add options or commands specifically for apploaders, dol files, etc... so the whole iso isn't needed
+* Add the ability to rebuild a ROM
+* Add a GCRebuilder compatability mode (this'd just add weird extra to some files, but that may not even be necessary idk)
 
 Refactoring
 * Only make stuff public if it needs to be
-* Be consistent
+* Be consistent (argument order, naming, output, and other stuff)
 * Rename stuff
 

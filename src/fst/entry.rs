@@ -1,5 +1,5 @@
 use std::io::{self, BufRead, Seek, SeekFrom, Write};
-use std::fs::{File, create_dir};
+use std::fs::{File, create_dir_all};
 use std::path::Path;
 
 use byteorder::{ReadBytesExt, BigEndian};
@@ -98,7 +98,7 @@ impl Entry {
         let mut count = start_count;
         match self {
             &Entry::Directory(ref d) => {
-                create_dir(filename.as_ref())?;
+                create_dir_all(filename.as_ref())?;
                 for e in d.iter_contents(fst) {
                     count += e.write_with_name_and_count(filename.as_ref().join(&e.info().name), fst, iso, count, callback)?;
                 }
@@ -115,19 +115,20 @@ impl Entry {
         Ok(count - start_count)
     }
 
-    pub fn read_filename<R: BufRead + Seek>(&mut self, reader: &mut R, str_tbl_addr: u64) {
+    pub fn read_filename<R: BufRead + Seek>(&mut self, reader: &mut R, str_tbl_addr: u64) -> io::Result<()> {
         let info = self.info_mut();
         if info.index == 0 {
             info.name = "/".to_owned();
         } else {
-            reader.seek(SeekFrom::Start(str_tbl_addr + info.filename_offset)).unwrap();
+            reader.seek(SeekFrom::Start(str_tbl_addr + info.filename_offset))?;
             // unsafe because the bytes read aren't guaranteed to be UTF-8
             unsafe {
                 let mut bytes = info.name.as_mut_vec();
-                reader.read_until(0, &mut bytes).unwrap();
+                reader.read_until(0, &mut bytes)?;
                 bytes.pop();
             }
         }
+        Ok(())
     }
 
     pub fn as_dir(&self) -> Option<&DirectoryEntry> {

@@ -7,6 +7,9 @@ use byteorder::{ReadBytesExt, BigEndian};
 use app_loader::AppLoader;
 use dol::{Header as DOLHeader, DOL_OFFSET_OFFSET};
 use fst::{FST, FST_OFFSET_OFFSET};
+use ::write_section;
+
+const GAME_HEADER_SIZE: usize = 0x2440;
 
 const GAMEID_SIZE: usize = 6;
 const GAMEID_OFFSET: u64 = 0;
@@ -51,9 +54,8 @@ impl Game {
         iso.seek(SeekFrom::Start(FST_OFFSET_OFFSET))?;
         let fst_addr = (&mut iso).read_u32::<BigEndian>()? as u64;
 
-        iso.seek(SeekFrom::Start(fst_addr))?;
-
-        let fst = FST::new(&mut iso)?;
+        // iso.seek(SeekFrom::Start(fst_addr))?;
+        let fst = FST::new(&mut iso, fst_addr)?;
 
         iso.seek(SeekFrom::Start(dol_addr))?;
         let dol = DOLHeader::new(&mut iso)?;
@@ -75,15 +77,25 @@ impl Game {
     pub fn extract<P>(&mut self, path: P) -> io::Result<()>
         where P: AsRef<Path>
     {
+        // Don't use `create_dir_all` here so it fails if `path` already exists.
         create_dir(path.as_ref())?;
+        let sys_data_path = path.as_ref().join("&&systemdata");
+        let sys_data_path: &Path = sys_data_path.as_ref();
+        create_dir(sys_data_path)?;
 
-        let mut app_loader_file = File::create(path.as_ref().join("app_loader.bin"))?;
+        let mut header_file = File::create(sys_data_path.join("ISO.hdr"))?;
+        self.write_game_header(&mut header_file)?;
+
+        let mut fst_file = File::create(sys_data_path.join("Game.toc"))?;
+        self.write_fst(&mut fst_file)?;
+
+        let mut app_loader_file = File::create(sys_data_path.join("AppLoader.ldr"))?;
         self.write_app_loader(&mut app_loader_file)?;
 
-        let mut dol_file = File::create(path.as_ref().join("boot.dol"))?;
+        let mut dol_file = File::create(sys_data_path.join("Start.dol"))?;
         self.write_dol(&mut dol_file)?;
 
-        self.write_files(path.as_ref().join("file_system"))?;
+        self.write_files(path.as_ref())?;
         Ok(())
     }
 
@@ -94,8 +106,16 @@ impl Game {
         let res = self.fst.write_files(path, &mut self.iso, &|c|
             print!("\r{}/{} files written.", c, count)
         );
-        println!("\n{} bytes written.", self.fst.total_size);
+        println!("\n{} bytes written.", self.fst.total_file_system_size);
         res
+    }
+
+    pub fn write_game_header<W>(&mut self, file: &mut W) -> io::Result<()>
+        where W: Write
+    {
+        println!("Writing game header...");
+        self.iso.seek(SeekFrom::Start(0))?;
+        write_section(&mut self.iso, GAME_HEADER_SIZE, file)
     }
 
     // DOL is the format of the main executable on a GameCube disk
@@ -111,6 +131,13 @@ impl Game {
     {
         println!("Writing app loader...");
         AppLoader::write_to_disk(&mut self.iso, file)
+    }
+
+    pub fn write_fst<W>(&mut self, file: &mut W) -> io::Result<()>
+        where W: Write
+    {
+        println!("Writing file system table...");
+        FST::write_to_disk(&mut self.iso, file, self.fst_addr)
     }
 
     pub fn print_info(&self) {
