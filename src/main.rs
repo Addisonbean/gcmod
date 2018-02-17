@@ -4,6 +4,7 @@ extern crate tempfile;
 
 use std::path::Path;
 use std::io::{Seek, SeekFrom};
+use std::fs::File;
 
 use clap::{App, Arg, SubCommand, AppSettings};
 
@@ -15,26 +16,39 @@ use gamecube_iso_assistant::disassembler::Disassembler;
 
 fn main() {
     let opts = App::new("gciso")
+
         .subcommand(SubCommand::with_name("extract")
             .about("Extract a ROM's contents to disk.")
             .arg(Arg::with_name("path_to_iso").short("i").long("iso")
                  .takes_value(true).required(true))
             .arg(Arg::with_name("output_dir").short("o").long("output")
                  .takes_value(true).required(true)))
+
         .subcommand(SubCommand::with_name("info")
             .about("Display information about the ROM.")
             .arg(Arg::with_name("path_to_iso").short("i").long("iso")
                  .takes_value(true).required(true)))
+
         .subcommand(SubCommand::with_name("disasm")
             .about("Disassemble the main DOL file from an iso.")
             .arg(Arg::with_name("path_to_iso").short("-i").long("iso")
                  .takes_value(true).required(true)))
+
+        .subcommand(SubCommand::with_name("rebuild")
+            .about("Rebuilds an iso.")
+            .arg(Arg::with_name("path_to_iso").short("-i").long("iso")
+                 .takes_value(true).required(true))
+            .arg(Arg::with_name("path_to_root").short("-r").long("root")
+                 .takes_value(true).required(true)))
+
         .setting(AppSettings::SubcommandRequired);
     match opts.get_matches().subcommand() {
         ("extract", Some(cmd)) => extract_iso(cmd.value_of("path_to_iso").unwrap(),
                                               cmd.value_of("output_dir").unwrap()),
         ("info", Some(cmd)) => print_iso_info(cmd.value_of("path_to_iso").unwrap()),
         ("disasm", Some(cmd)) => disassemble_dol(cmd.value_of("path_to_iso").unwrap()),
+        ("rebuild", Some(cmd)) => rebuild_iso(cmd.value_of("path_to_root").unwrap(),
+                                              cmd.value_of("path_to_iso").unwrap()),
         _ => (),
     }
 }
@@ -107,6 +121,14 @@ fn disassemble_dol<P>(input: P)
             }
         }
     });
+}
+
+// TODO: don't unwrap
+fn rebuild_iso<P>(root_path: P, iso_path: P)
+    where P: AsRef<Path>
+{
+    let mut iso = File::create(iso_path.as_ref()).unwrap(); 
+    Game::rebuild(root_path.as_ref(), &mut iso).expect("Couldn't rebuild iso.");
 }
 
 fn try_to_open_game<P>(path: P) -> Option<Game>

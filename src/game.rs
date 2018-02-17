@@ -1,22 +1,21 @@
 use std::fs::{create_dir, File};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
+use std::collections::BTreeMap;
+use std::sync::Mutex;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use app_loader::AppLoader;
+use header::Header;
+use app_loader::{APP_LOADER_OFFSET, AppLoader};
 use dol::{Header as DOLHeader, DOL_OFFSET_OFFSET};
 use fst::{FST, FST_OFFSET_OFFSET};
+use fst::entry::{DirectoryEntry, Entry};
 use ::write_section;
 
-const GAME_HEADER_SIZE: usize = 0x2440;
+const ROM_SIZE: usize = 0x57058000;
 
-const GAMEID_SIZE: usize = 6;
-const GAMEID_OFFSET: u64 = 0;
-
-// TODO: other sources suggest this size is larger, look into that...
-const TITLE_SIZE: usize = 0x60;
-const TITLE_OFFSET: u64 = 0x20;
+use header::{GAMEID_SIZE, GAMEID_OFFSET, GAME_HEADER_SIZE, TITLE_SIZE, TITLE_OFFSET};
 
 #[derive(Debug)]
 pub struct Game {
@@ -54,7 +53,6 @@ impl Game {
         iso.seek(SeekFrom::Start(FST_OFFSET_OFFSET))?;
         let fst_addr = (&mut iso).read_u32::<BigEndian>()? as u64;
 
-        // iso.seek(SeekFrom::Start(fst_addr))?;
         let fst = FST::new(&mut iso, fst_addr)?;
 
         iso.seek(SeekFrom::Start(dol_addr))?;
@@ -147,6 +145,90 @@ impl Game {
         println!("FST size: {} bytes", self.fst.entries.len() * 12);
         println!("Main DOL offset: {}", self.dol_addr);
         println!("Main DOL entry point: {} bytes", self.dol.entry_point);
+        println!("Apploader size: {}", self.app_loader.total_size());
+
+        self.print_layout();
+    }
+
+    pub fn print_layout(&self) {
+        let mut regions = BTreeMap::new();
+
+        // regions.insert(start, (size, name));
+        regions.insert(0, (GAME_HEADER_SIZE, "GamISO.hdr"));
+        regions.insert(APP_LOADER_OFFSET, (self.app_loader.total_size(), "AppLoader.ldr"));
+        regions.insert(self.dol_addr, (self.dol.dol_size, "Start.dol"));
+        regions.insert(self.fst_addr, (self.fst.size, "Game.toc"));
+
+        for (start, &(end, name)) in &regions {
+            println!("{:#010x}-{:#010x}: {}", start, start + end as u64, name);
+        }
+    }
+
+    pub fn rebuild<P, W>(root_path: P, output: &mut W) -> io::Result<()>
+        where P: AsRef<Path>, W: Write
+    {
+        let mut bytes_written = 0;
+
+        let files = Game::make_sections_btree(root_path.as_ref())?;
+
+        for (&offset, filename) in &files {
+            write_zeros((offset - bytes_written) as usize, output)?;
+            bytes_written = offset;
+            let mut file = File::open(root_path.as_ref().join(filename))?;
+            let size = file.metadata()?.len();
+            write_section(&mut file, size as usize, output)?;
+            bytes_written += size;
+        }
+        write_zeros(ROM_SIZE - bytes_written as usize, output)
+    }
+
+    fn make_sections_btree<P>(root: P) -> io::Result<BTreeMap<u64, PathBuf>>
+        where P: AsRef<Path>
+    {
+        let root = root.as_ref();
+        let header_path = root.join("&&systemdata/ISO.hdr");
+        let fst_path = root.join("&&systemdata/Game.toc");
+        let apploader_path = root.join("&&systemdata/AppLoader.ldr");
+        let dol_path = root.join("&&systemdata/Start.dol");
+
+        let header = Header::new(&mut File::open(&header_path)?)?;
+        let fst = FST::new(&mut BufReader::new(File::open(&fst_path)?), 0)?;
+
+        let mut tree = make_files_btree(&fst);
+        tree.insert(0, header_path);
+        tree.insert(APP_LOADER_OFFSET, apploader_path);
+        tree.insert(header.fst_addr, fst_path);
+        tree.insert(header.dol_addr, dol_path);
+
+        Ok(tree)
+    }
+}
+
+fn write_zeros<W>(count: usize, output: &mut W) -> io::Result<()>
+    where W: Write
+{
+    lazy_static! {
+        static ref ZEROS: Mutex<Vec<u8>> = Mutex::new(vec![]);
+    }
+    let mut zeros = ZEROS.lock().unwrap();
+    zeros.resize(count, 0);
+    output.write_all(&zeros[..])
+}
+
+fn make_files_btree(fst: &FST) -> BTreeMap<u64, PathBuf> {
+    let mut files = BTreeMap::new();
+    fill_files_btree(&mut files, fst.entries[0].as_dir().unwrap(), "", fst);
+    files
+}
+
+fn fill_files_btree<P>(files: &mut BTreeMap<u64, PathBuf>, dir: &DirectoryEntry, prefix: P, fst: &FST)
+    where P: AsRef<Path>
+{
+    for entry in dir.iter_contents(&fst.entries) {
+        match entry {
+            &Entry::File(ref file) => { files.insert(file.file_offset, prefix.as_ref().join(&file.info.name)); },
+            &Entry::Directory(ref dir) => fill_files_btree(files, dir, prefix.as_ref().join(&dir.info.name), fst),
+        };
     }
 }
 

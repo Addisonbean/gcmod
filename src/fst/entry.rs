@@ -125,6 +125,7 @@ impl Entry {
             unsafe {
                 let mut bytes = info.name.as_mut_vec();
                 reader.read_until(0, &mut bytes)?;
+                // this gets rid of the trailing null byte
                 bytes.pop();
             }
         }

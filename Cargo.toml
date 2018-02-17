@@ -8,3 +8,4 @@ authors = ["Addison Bean <addisonbean@gmail.com>"]
 byteorder = "1"
 clap = "2"
 tempfile = "2.2.0"
+lazy_static = "1.0"

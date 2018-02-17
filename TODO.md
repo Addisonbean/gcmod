@@ -11,11 +11,14 @@ TODO
 * Add an option for "info" to display values in hexadecimal
 * Add a command to disassemble an iso, plus an option to only disassemble a given dol file
 * Add options or commands specifically for apploaders, dol files, etc... so the whole iso isn't needed
-* Add the ability to rebuild a ROM
 * Add a GCRebuilder compatability mode (this'd just add weird extra to some files, but that may not even be necessary idk)
+* Improve the info subcommand output
+* Compress the iso/make it as small as possible
+* Add an option to rebuild Game.toc, the Start.dol header, and ISO.hdr to account for changes
 
 Refactoring
+* Use header::Header in game::Game
 * Only make stuff public if it needs to be
 * Be consistent (argument order, naming, output, and other stuff)
-* Rename stuff
+* Rename stuff (specifically dol::Header, make Apploader one word always)
 

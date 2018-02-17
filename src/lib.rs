@@ -1,4 +1,6 @@
 extern crate byteorder;
+#[macro_use]
+extern crate lazy_static;
 
 use std::io::{self, Read, Write};
 use std::cmp::min;
@@ -6,6 +8,7 @@ use std::cmp::min;
 mod game;
 pub use game::Game;
 
+pub mod header;
 pub mod fst;
 pub mod dol;
 pub mod app_loader;
