@@ -1,8 +1,8 @@
 TODO
 * Add a way to specify a custom objdump path
 * Make Entry::new return a Result, not Option
-* Add more subcommands
 * Improve the cli options and subcommands, it could be more intuitive
+* Add more subcommands
 * Put it on codereview.stackexchange.com
 * Use expect more, unwrap less
 * More error handling, especially for corrupt isos
@@ -19,6 +19,7 @@ TODO
 	* Compress the contents/pack all the information to not waste any space, so there's more room for mods
 * Anything in the source with a `TODO: ` label
 * Make methods or functions for adding sections or files to a btree map, maybe make a struct to generalize the thing going on with make\_sections\_btree
+* Improve error messages
 
 Refactoring
 * Only make stuff public if it needs to be

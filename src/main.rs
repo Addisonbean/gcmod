@@ -2,7 +2,7 @@ extern crate gamecube_iso_assistant;
 extern crate clap;
 extern crate tempfile;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::io::{Seek, SeekFrom};
 use std::fs::File;
 
@@ -30,7 +30,9 @@ fn main() {
         .subcommand(SubCommand::with_name("disasm")
             .about("Disassemble the main DOL file from an iso.")
             .arg(Arg::with_name("path_to_iso").short("-i").long("iso")
-                 .takes_value(true).required(true)))
+                 .takes_value(true).required(true))
+            .arg(Arg::with_name("objdump_path").long("objdump")
+                 .takes_value(true).required(false)))
 
         .subcommand(SubCommand::with_name("rebuild")
             .about("Rebuilds an iso.")
@@ -44,16 +46,19 @@ fn main() {
         ("extract", Some(cmd)) => 
             extract_iso(
                 cmd.value_of("path_to_iso").unwrap(),
-                cmd.value_of("output_dir").unwrap()
+                cmd.value_of("output_dir").unwrap(),
             ),
         ("info", Some(cmd)) => 
             print_iso_info(cmd.value_of("path_to_iso").unwrap()),
         ("disasm", Some(cmd)) =>
-            disassemble_dol(cmd.value_of("path_to_iso").unwrap()),
+            disassemble_dol(
+                cmd.value_of("path_to_iso").unwrap(),
+                cmd.value_of("objdump_path"),
+            ),
         ("rebuild", Some(cmd)) =>
             rebuild_iso(
                 cmd.value_of("path_to_root").unwrap(),
-                cmd.value_of("path_to_iso").unwrap()
+                cmd.value_of("path_to_iso").unwrap(),
             ),
         _ => (),
     }
@@ -76,7 +81,7 @@ fn print_iso_info<P: AsRef<Path>>(input: P) {
     try_to_open_game(input).as_ref().map(Game::print_info);
 }
 
-fn disassemble_dol<P: AsRef<Path>>(input: P) {
+fn disassemble_dol<P: AsRef<Path>>(input: P, objdump_path: Option<P>) {
     try_to_open_game(input.as_ref()).map(|mut game| {
         let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
         if let Err(_) = game.write_dol(tmp_file.as_mut()) {
@@ -85,7 +90,9 @@ fn disassemble_dol<P: AsRef<Path>>(input: P) {
         tmp_file.seek(SeekFrom::Start(0)).unwrap();
         let header = DOLHeader::new(tmp_file.as_mut(), 0)
             .expect("Failed to read header.");
-        let disassembler = match Disassembler::objdump_path(&"/usr/local/Cellar/binutils/2.29/bin/gobjdump") {
+        let objdump_path = objdump_path
+            .map_or(PathBuf::from("objdump"), |p| p.as_ref().to_path_buf());
+        let disassembler = match Disassembler::objdump_path(&objdump_path) {
             Ok(d) => d,
             Err(_) => {
                 eprintln!("GNU objdump required.");
