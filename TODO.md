@@ -21,7 +21,6 @@ TODO
 * Make methods or functions for adding sections or files to a btree map, maybe make a struct to generalize the thing going on with make\_sections\_btree
 
 Refactoring
-* Use header::Header in game::Game (do this next)
 * Only make stuff public if it needs to be
 * Be consistent (argument order, naming, output, and other stuff)
 * Rename stuff

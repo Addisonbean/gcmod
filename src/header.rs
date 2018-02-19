@@ -14,6 +14,7 @@ pub const GAMEID_OFFSET: u64 = 0;
 pub const TITLE_SIZE: usize = 0x60;
 pub const TITLE_OFFSET: u64 = 0x20;
 
+#[derive(Debug)]
 pub struct Header {
     pub game_id: String,
     pub title: String,
@@ -23,6 +24,7 @@ pub struct Header {
 
 impl Header {
     pub fn new<R: Read + Seek>(file: &mut R) -> io::Result<Header> {
+        file.seek(SeekFrom::Start(0))?;
         let mut game_id = String::with_capacity(GAMEID_SIZE);
         let mut title = String::with_capacity(TITLE_SIZE);
 

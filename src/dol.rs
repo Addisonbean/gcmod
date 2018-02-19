@@ -63,7 +63,10 @@ pub struct DOLHeader {
 }
 
 impl DOLHeader {
-    pub fn new<F: Read + Seek>(file: &mut F) -> io::Result<DOLHeader> {
+    pub fn new<F>(file: &mut F, offset: u64) -> io::Result<DOLHeader> 
+        where F: Read + Seek
+    {
+        file.seek(SeekFrom::Start(offset))?;
         let mut text_segments = [Segment::text(); TEXT_SEG_COUNT];
         let mut data_segments = [Segment::data(); DATA_SEG_COUNT];
         {

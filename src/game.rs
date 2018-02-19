@@ -1,37 +1,26 @@
 use std::fs::{create_dir, File};
 use std::path::{Path, PathBuf};
-use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufReader, Seek, SeekFrom, Write};
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
-use byteorder::{ReadBytesExt, BigEndian};
-
 use header::Header;
 use app_loader::{APPLOADER_OFFSET, Apploader};
-use dol::{DOLHeader, DOL_OFFSET_OFFSET};
-use fst::{FST, FST_OFFSET_OFFSET};
+use dol::DOLHeader;
+use fst::FST;
 use fst::entry::{DirectoryEntry, Entry};
 use ::write_section;
 
 const ROM_SIZE: usize = 0x57058000;
 
-use header::{
-    GAMEID_SIZE, 
-    GAMEID_OFFSET,
-    GAME_HEADER_SIZE,
-    TITLE_SIZE,
-    TITLE_OFFSET
-};
+use header::GAME_HEADER_SIZE;
 
 #[derive(Debug)]
 pub struct Game {
-    pub game_id: String,
-    pub title: String,
+    pub header: Header,
     pub app_loader: Apploader,
     pub fst: FST,
     pub dol: DOLHeader,
-    pub fst_addr: u64,
-    pub dol_addr: u64,
     pub iso: BufReader<File>,
 }
 
@@ -40,40 +29,17 @@ impl Game {
     pub fn open<P: AsRef<Path>>(filename: P) -> io::Result<Game> {
         let f = File::open(&filename)?;
         let mut iso = BufReader::new(f);
-        let mut game_id = String::with_capacity(GAMEID_SIZE);
-        let mut title = String::with_capacity(TITLE_SIZE);
 
-        iso.seek(SeekFrom::Start(GAMEID_OFFSET))?;
-        iso.by_ref().take(GAMEID_SIZE as u64).read_to_string(&mut game_id)
-            .unwrap();
-
-        iso.seek(SeekFrom::Start(TITLE_OFFSET))?;
-        iso.by_ref().take(TITLE_SIZE as u64).read_to_string(&mut title)
-            .unwrap();
-
-        // do some other stuff then:
-
-        iso.seek(SeekFrom::Start(DOL_OFFSET_OFFSET))?;
-        let dol_addr = iso.by_ref().read_u32::<BigEndian>()? as u64;
-
-        iso.seek(SeekFrom::Start(FST_OFFSET_OFFSET))?;
-        let fst_addr = iso.by_ref().read_u32::<BigEndian>()? as u64;
-
-        let fst = FST::new(&mut iso, fst_addr)?;
-
-        iso.seek(SeekFrom::Start(dol_addr))?;
-        let dol = DOLHeader::new(&mut iso)?;
-
+        let header = Header::new(&mut iso)?;
+        let fst = FST::new(&mut iso, header.fst_addr)?;
+        let dol = DOLHeader::new(&mut iso, header.dol_addr)?;
         let app_loader = Apploader::new(&mut iso)?;
 
         Ok(Game {
-            game_id,
-            title,
+            header,
             app_loader,
             fst,
             dol,
-            fst_addr,
-            dol_addr,
             iso,
         })
     }
@@ -124,7 +90,7 @@ impl Game {
     // DOL is the format of the main executable on a GameCube disk
     pub fn write_dol<W: Write>(&mut self, file: &mut W) -> io::Result<()> {
         println!("Writing DOL header...");
-        DOLHeader::write_to_disk(&mut self.iso, self.dol_addr, file)
+        DOLHeader::write_to_disk(&mut self.iso, self.header.dol_addr, file)
     }
 
     pub fn write_app_loader<W>(&mut self, file: &mut W) -> io::Result<()>
@@ -136,15 +102,15 @@ impl Game {
 
     pub fn write_fst<W: Write>(&mut self, file: &mut W) -> io::Result<()> {
         println!("Writing file system table...");
-        FST::write_to_disk(&mut self.iso, file, self.fst_addr)
+        FST::write_to_disk(&mut self.iso, file, self.header.fst_addr)
     }
 
     pub fn print_info(&self) {
-        println!("Title: {}", self.title);
-        println!("GameID: {}", self.game_id);
-        println!("FST offset: {}", self.fst_addr);
+        println!("Title: {}", self.header.title);
+        println!("GameID: {}", self.header.game_id);
+        println!("FST offset: {}", self.header.fst_addr);
         println!("FST size: {} bytes", self.fst.entries.len() * 12);
-        println!("Main DOL offset: {}", self.dol_addr);
+        println!("Main DOL offset: {}", self.header.dol_addr);
         println!("Main DOL entry point: {}", self.dol.entry_point);
         println!("Apploader size: {}", self.app_loader.total_size());
 
@@ -160,8 +126,8 @@ impl Game {
             APPLOADER_OFFSET,
             (self.app_loader.total_size(), "Apploader.ldr")
         );
-        regions.insert(self.dol_addr, (self.dol.dol_size, "Start.dol"));
-        regions.insert(self.fst_addr, (self.fst.size, "Game.toc"));
+        regions.insert(self.header.dol_addr, (self.dol.dol_size, "Start.dol"));
+        regions.insert(self.header.fst_addr, (self.fst.size, "Game.toc"));
 
         for (start, &(end, name)) in &regions {
             println!("{:#010x}-{:#010x}: {}", start, start + end as u64, name);

@@ -83,7 +83,7 @@ fn disassemble_dol<P: AsRef<Path>>(input: P) {
             eprintln!("Could not extract dol.");
         }
         tmp_file.seek(SeekFrom::Start(0)).unwrap();
-        let header = DOLHeader::new(tmp_file.as_mut())
+        let header = DOLHeader::new(tmp_file.as_mut(), 0)
             .expect("Failed to read header.");
         let disassembler = match Disassembler::objdump_path(&"/usr/local/Cellar/binutils/2.29/bin/gobjdump") {
             Ok(d) => d,
