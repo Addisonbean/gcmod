@@ -21,10 +21,11 @@ impl<'a> Disassembler<'a> {
         })
     }
 
-    pub fn disasm<P>(&self, file_path: P, segment: &Segment) -> io::Result<DisasmIter>
-        where P: AsRef<OsStr>
-    {
-
+    pub fn disasm<P: AsRef<OsStr>>(
+        &self,
+        file_path: P,
+        segment: &Segment
+    ) -> io::Result<DisasmIter> {
         let offset = segment.loading_address - segment.start;
         let start = segment.start + offset;
         let end = start + segment.size;
@@ -52,15 +53,11 @@ impl<'a> Disassembler<'a> {
 
     }
 
-    pub fn new<P>() -> io::Result<Disassembler<'a>>
-        where P: AsRef<OsStr>
-    {
+    pub fn new<P: AsRef<OsStr>>() -> io::Result<Disassembler<'a>> {
         Disassembler::objdump_path(&"objdump")
     }
 
-    fn check_objdump_version<P>(objdump_path: P) -> io::Result<()>
-        where P: AsRef<OsStr>
-    {
+    fn check_objdump_version<P: AsRef<OsStr>>(objdump_path: P) -> io::Result<()> {
         let expected_str = "GNU objdump";
         let yep = Command::new(objdump_path.as_ref())
             .arg("--version")
@@ -98,7 +95,9 @@ impl Instruction {
     pub fn from_objdump(text: &str) -> Option<Instruction> {
         let mut parts = text.split_whitespace();
         let location = match parts.nth(0) {
-            Some("...") => return Some(Instruction { text: "...".to_owned(), opcode: 0, location: None }),
+            Some("...") => return Some(Instruction {
+                text: "...".to_owned(), opcode: 0, location: None
+            }),
             Some(s) if s.chars().last() == Some(':') =>
                 u64::from_str_radix(&s[..(s.len() - 1)], 16).ok(),
             _ => return None,
@@ -127,10 +126,12 @@ impl DisasmIter {
     fn advance_to_start(&mut self) -> io::Result<()> {
         loop {
             match self.lines.next() {
-                // Some(Ok(ref s)) if s == "00000000 <.data>:" => return Ok(()),
                 Some(Ok(ref s)) if s.contains("<.data") => return Ok(()),
                 Some(_) => (),
-                None => return Err(Error::new(io::ErrorKind::InvalidInput, "Invalid output from `objdump`.")),
+                None => return Err(Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "Invalid output from `objdump`."
+                )),
             }
         }
     }

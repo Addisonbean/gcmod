@@ -31,8 +31,11 @@ impl FST {
 
         let mut entry_buffer: [u8; ENTRY_SIZE] = [0; ENTRY_SIZE];
         iso.take(ENTRY_SIZE as u64).read_exact(&mut entry_buffer)?;
-        let root = Entry::new(&entry_buffer, 0).expect("Couldn't read root fst entry.");
-        let entry_count = root.as_dir().expect("Root fst wasn't a directory.").next_index;
+        let root = Entry::new(&entry_buffer, 0)
+            .expect("Couldn't read root fst entry.");
+        let entry_count = root.as_dir()
+            .expect("Root fst wasn't a directory.")
+            .next_index;
 
         let mut entries = Vec::with_capacity(entry_count);
         entries.push(root);
@@ -42,7 +45,10 @@ impl FST {
 
         for index in 1..entry_count {
             iso.take(ENTRY_SIZE as u64).read_exact(&mut entry_buffer)?;
-            let e = Entry::new(&entry_buffer, index).unwrap_or_else(|| panic!("Couldn't read fst entry {}.", index));
+            let e = Entry::new(&entry_buffer, index)
+                .unwrap_or_else(||
+                    panic!("Couldn't read fst entry {}.", index)
+                );
             if let Some(f) = e.as_file() {
                 file_count += 1;
                 total_file_system_size += f.length;
@@ -67,13 +73,22 @@ impl FST {
         })
     }
 
-    pub fn write_files<P, R, F>(&mut self, path: P, iso: &mut R, callback: &F) -> io::Result<usize>
+    pub fn write_files<P, R, F>(
+        &mut self, 
+        path: P, 
+        iso: &mut R, 
+        callback: &F
+    ) -> io::Result<usize>
         where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
     {
         self.entries[0].write_with_name(path, &self.entries, iso, callback)
     }
 
-    pub fn write_to_disk<R, W>(iso: &mut R, file: &mut W, fst_offset: u64) -> io::Result<()>
+    pub fn write_to_disk<R, W>(
+        iso: &mut R,
+        file: &mut W,
+        fst_offset: u64
+    ) -> io::Result<()>
         where R: Read + Seek, W: Write
     {
         iso.seek(SeekFrom::Start(FST_SIZE_OFFSET))?;

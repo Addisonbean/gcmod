@@ -16,9 +16,11 @@ pub mod disassembler;
 
 const WRITE_CHUNK_SIZE: usize = 1048576; // 1048576 = 2^20 = 1MiB
 
-pub fn write_section<R, W>(iso: &mut R, bytes: usize, file: &mut W) -> io::Result<()>
-    where R: Read, W: Write
-{
+pub fn write_section<R: Read, W: Write>(
+    iso: &mut R,
+    bytes: usize,
+    file: &mut W
+) -> io::Result<()> {
     let mut buf: [u8; WRITE_CHUNK_SIZE] = [0; WRITE_CHUNK_SIZE];
     let mut bytes_left = bytes;
 

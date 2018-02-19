@@ -7,21 +7,27 @@ use std::sync::Mutex;
 use byteorder::{ReadBytesExt, BigEndian};
 
 use header::Header;
-use app_loader::{APP_LOADER_OFFSET, AppLoader};
-use dol::{Header as DOLHeader, DOL_OFFSET_OFFSET};
+use app_loader::{APPLOADER_OFFSET, Apploader};
+use dol::{DOLHeader, DOL_OFFSET_OFFSET};
 use fst::{FST, FST_OFFSET_OFFSET};
 use fst::entry::{DirectoryEntry, Entry};
 use ::write_section;
 
 const ROM_SIZE: usize = 0x57058000;
 
-use header::{GAMEID_SIZE, GAMEID_OFFSET, GAME_HEADER_SIZE, TITLE_SIZE, TITLE_OFFSET};
+use header::{
+    GAMEID_SIZE, 
+    GAMEID_OFFSET,
+    GAME_HEADER_SIZE,
+    TITLE_SIZE,
+    TITLE_OFFSET
+};
 
 #[derive(Debug)]
 pub struct Game {
     pub game_id: String,
     pub title: String,
-    pub app_loader: AppLoader,
+    pub app_loader: Apploader,
     pub fst: FST,
     pub dol: DOLHeader,
     pub fst_addr: u64,
@@ -31,34 +37,34 @@ pub struct Game {
 
 impl Game {
 
-    pub fn open<P>(filename: P) -> io::Result<Game>
-        where P: AsRef<Path>
-    {
+    pub fn open<P: AsRef<Path>>(filename: P) -> io::Result<Game> {
         let f = File::open(&filename)?;
         let mut iso = BufReader::new(f);
         let mut game_id = String::with_capacity(GAMEID_SIZE);
         let mut title = String::with_capacity(TITLE_SIZE);
 
         iso.seek(SeekFrom::Start(GAMEID_OFFSET))?;
-        (&mut iso).take(GAMEID_SIZE as u64).read_to_string(&mut game_id).unwrap();
+        iso.by_ref().take(GAMEID_SIZE as u64).read_to_string(&mut game_id)
+            .unwrap();
 
         iso.seek(SeekFrom::Start(TITLE_OFFSET))?;
-        (&mut iso).take(TITLE_SIZE as u64).read_to_string(&mut title).unwrap();
+        iso.by_ref().take(TITLE_SIZE as u64).read_to_string(&mut title)
+            .unwrap();
 
         // do some other stuff then:
 
         iso.seek(SeekFrom::Start(DOL_OFFSET_OFFSET))?;
-        let dol_addr = (&mut iso).read_u32::<BigEndian>()? as u64;
+        let dol_addr = iso.by_ref().read_u32::<BigEndian>()? as u64;
 
         iso.seek(SeekFrom::Start(FST_OFFSET_OFFSET))?;
-        let fst_addr = (&mut iso).read_u32::<BigEndian>()? as u64;
+        let fst_addr = iso.by_ref().read_u32::<BigEndian>()? as u64;
 
         let fst = FST::new(&mut iso, fst_addr)?;
 
         iso.seek(SeekFrom::Start(dol_addr))?;
         let dol = DOLHeader::new(&mut iso)?;
 
-        let app_loader = AppLoader::new(&mut iso)?;
+        let app_loader = Apploader::new(&mut iso)?;
 
         Ok(Game {
             game_id,
@@ -72,10 +78,8 @@ impl Game {
         })
     }
 
-    pub fn extract<P>(&mut self, path: P) -> io::Result<()>
-        where P: AsRef<Path>
-    {
-        // Don't use `create_dir_all` here so it fails if `path` already exists.
+    pub fn extract<P: AsRef<Path>>(&mut self, path: P) -> io::Result<()> {
+        // Not using `create_dir_all` here so it fails if `path` already exists.
         create_dir(path.as_ref())?;
         let sys_data_path = path.as_ref().join("&&systemdata");
         let sys_data_path: &Path = sys_data_path.as_ref();
@@ -87,7 +91,8 @@ impl Game {
         let mut fst_file = File::create(sys_data_path.join("Game.toc"))?;
         self.write_fst(&mut fst_file)?;
 
-        let mut app_loader_file = File::create(sys_data_path.join("AppLoader.ldr"))?;
+        let mut app_loader_file =
+            File::create(sys_data_path.join("Apploader.ldr"))?;
         self.write_app_loader(&mut app_loader_file)?;
 
         let mut dol_file = File::create(sys_data_path.join("Start.dol"))?;
@@ -117,9 +122,7 @@ impl Game {
     }
 
     // DOL is the format of the main executable on a GameCube disk
-    pub fn write_dol<W>(&mut self, file: &mut W) -> io::Result<()>
-        where W: Write
-    {
+    pub fn write_dol<W: Write>(&mut self, file: &mut W) -> io::Result<()> {
         println!("Writing DOL header...");
         DOLHeader::write_to_disk(&mut self.iso, self.dol_addr, file)
     }
@@ -128,12 +131,10 @@ impl Game {
         where W: Write
     {
         println!("Writing app loader...");
-        AppLoader::write_to_disk(&mut self.iso, file)
+        Apploader::write_to_disk(&mut self.iso, file)
     }
 
-    pub fn write_fst<W>(&mut self, file: &mut W) -> io::Result<()>
-        where W: Write
-    {
+    pub fn write_fst<W: Write>(&mut self, file: &mut W) -> io::Result<()> {
         println!("Writing file system table...");
         FST::write_to_disk(&mut self.iso, file, self.fst_addr)
     }
@@ -144,7 +145,7 @@ impl Game {
         println!("FST offset: {}", self.fst_addr);
         println!("FST size: {} bytes", self.fst.entries.len() * 12);
         println!("Main DOL offset: {}", self.dol_addr);
-        println!("Main DOL entry point: {} bytes", self.dol.entry_point);
+        println!("Main DOL entry point: {}", self.dol.entry_point);
         println!("Apploader size: {}", self.app_loader.total_size());
 
         self.print_layout();
@@ -153,9 +154,12 @@ impl Game {
     pub fn print_layout(&self) {
         let mut regions = BTreeMap::new();
 
-        // regions.insert(start, (size, name));
-        regions.insert(0, (GAME_HEADER_SIZE, "GamISO.hdr"));
-        regions.insert(APP_LOADER_OFFSET, (self.app_loader.total_size(), "AppLoader.ldr"));
+        // format: regions.insert(start, (size, name));
+        regions.insert(0, (GAME_HEADER_SIZE, "ISO.hdr"));
+        regions.insert(
+            APPLOADER_OFFSET,
+            (self.app_loader.total_size(), "Apploader.ldr")
+        );
         regions.insert(self.dol_addr, (self.dol.dol_size, "Start.dol"));
         regions.insert(self.fst_addr, (self.fst.size, "Game.toc"));
 
@@ -188,7 +192,7 @@ impl Game {
         let root = root.as_ref();
         let header_path = root.join("&&systemdata/ISO.hdr");
         let fst_path = root.join("&&systemdata/Game.toc");
-        let apploader_path = root.join("&&systemdata/AppLoader.ldr");
+        let apploader_path = root.join("&&systemdata/Apploader.ldr");
         let dol_path = root.join("&&systemdata/Start.dol");
 
         let header = Header::new(&mut File::open(&header_path)?)?;
@@ -196,7 +200,7 @@ impl Game {
 
         let mut tree = make_files_btree(&fst);
         tree.insert(0, header_path);
-        tree.insert(APP_LOADER_OFFSET, apploader_path);
+        tree.insert(APPLOADER_OFFSET, apploader_path);
         tree.insert(header.fst_addr, fst_path);
         tree.insert(header.dol_addr, dol_path);
 
@@ -204,9 +208,7 @@ impl Game {
     }
 }
 
-fn write_zeros<W>(count: usize, output: &mut W) -> io::Result<()>
-    where W: Write
-{
+fn write_zeros<W: Write>(count: usize, output: &mut W) -> io::Result<()> {
     lazy_static! {
         static ref ZEROS: Mutex<Vec<u8>> = Mutex::new(vec![]);
     }
@@ -221,13 +223,28 @@ fn make_files_btree(fst: &FST) -> BTreeMap<u64, PathBuf> {
     files
 }
 
-fn fill_files_btree<P>(files: &mut BTreeMap<u64, PathBuf>, dir: &DirectoryEntry, prefix: P, fst: &FST)
-    where P: AsRef<Path>
-{
+fn fill_files_btree<P: AsRef<Path>>(
+    files: &mut BTreeMap<u64, PathBuf>,
+    dir: &DirectoryEntry,
+    prefix: P,
+    fst: &FST
+) {
     for entry in dir.iter_contents(&fst.entries) {
         match entry {
-            &Entry::File(ref file) => { files.insert(file.file_offset, prefix.as_ref().join(&file.info.name)); },
-            &Entry::Directory(ref dir) => fill_files_btree(files, dir, prefix.as_ref().join(&dir.info.name), fst),
+            &Entry::File(ref file) => {
+                files.insert(
+                    file.file_offset,
+                    prefix.as_ref().join(&file.info.name)
+                );
+            },
+            &Entry::Directory(ref dir) => {
+                fill_files_btree(
+                    files,
+                    dir,
+                    prefix.as_ref().join(&dir.info.name),
+                    fst
+                );
+            },
         };
     }
 }

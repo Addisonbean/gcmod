@@ -22,24 +22,23 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn new<R>(file: &mut R) -> io::Result<Header>
-        where R: Read + Seek
-    {
+    pub fn new<R: Read + Seek>(file: &mut R) -> io::Result<Header> {
         let mut game_id = String::with_capacity(GAMEID_SIZE);
         let mut title = String::with_capacity(TITLE_SIZE);
 
         file.seek(SeekFrom::Start(GAMEID_OFFSET))?;
-        file.by_ref().take(GAMEID_SIZE as u64).read_to_string(&mut game_id).unwrap();
+        file.by_ref().take(GAMEID_SIZE as u64).read_to_string(&mut game_id)
+            .unwrap();
 
         file.seek(SeekFrom::Start(TITLE_OFFSET))?;
-        file.by_ref().take(TITLE_SIZE as u64).read_to_string(&mut title).unwrap();
+        file.by_ref().take(TITLE_SIZE as u64).read_to_string(&mut title)
+            .unwrap();
 
         file.seek(SeekFrom::Start(DOL_OFFSET_OFFSET))?;
-        // let dol_addr = file.by_ref().read_u32::<BigEndian>()? as u64;
         let dol_addr = file.read_u32::<BigEndian>()? as u64;
 
         file.seek(SeekFrom::Start(FST_OFFSET_OFFSET))?;
-        let fst_addr = file.by_ref().read_u32::<BigEndian>()? as u64;
+        let fst_addr = file.read_u32::<BigEndian>()? as u64;
 
         Ok(Header {
             game_id,

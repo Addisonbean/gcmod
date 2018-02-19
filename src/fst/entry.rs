@@ -42,8 +42,10 @@ pub enum Entry {
 
 impl Entry {
     pub fn new(entry: &[u8], index: usize) -> Option<Entry> {
-        // TODO: don't use unwrap when this is implemented: https://github.com/rust-lang/rfcs/issues/935
-        let filename_offset = (&entry[1..4]).read_u24::<BigEndian>().unwrap() as u64;
+        // TODO: don't use unwrap when this is implemented
+        // https://github.com/rust-lang/rfcs/issues/935
+        let filename_offset =
+            (&entry[1..4]).read_u24::<BigEndian>().unwrap() as u64;
         let f2 = (&entry[4..8]).read_u32::<BigEndian>().unwrap();
         let f3 = (&entry[8..12]).read_u32::<BigEndian>().unwrap();
         let name = String::new();
@@ -84,28 +86,43 @@ impl Entry {
     }
 
     // move to Game?
-    pub fn write_with_name<P, R, F>(&self, filename: P, fst: &Vec<Entry>, iso: &mut R, callback: &F) -> io::Result<usize>
+    pub fn write_with_name<P, R, F>(
+        &self,
+        filename: P,
+        fst: &Vec<Entry>,
+        iso: &mut R,
+        callback: &F
+    ) -> io::Result<usize>
         where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
-        // where P: AsRef<Path>, R: BufRead + Seek, F: Fn(&str, usize)
     {
         self.write_with_name_and_count(filename, fst, iso, 0, callback)
     }
 
-    fn write_with_name_and_count<P, R, F>(&self, filename: P, fst: &Vec<Entry>, iso: &mut R, start_count: usize, callback: &F) -> io::Result<usize>
+    pub fn write_with_name_and_count<P, R, F>(
+        &self,
+        filename: P,
+        fst: &Vec<Entry>,
+        iso: &mut R,
+        start_count: usize,
+        callback: &F
+    ) -> io::Result<usize>
         where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
-        // where P: AsRef<Path>, R: BufRead + Seek, F: Fn(&str, usize)
     {
         let mut count = start_count;
         match self {
             &Entry::Directory(ref d) => {
                 create_dir_all(filename.as_ref())?;
                 for e in d.iter_contents(fst) {
-                    count += e.write_with_name_and_count(filename.as_ref().join(&e.info().name), fst, iso, count, callback)?;
+                    count += e.write_with_name_and_count(
+                        filename.as_ref().join(&e.info().name),
+                        fst,
+                        iso,
+                        count,
+                        callback,
+                    )?;
                 }
             },
             &Entry::File(ref f) => {
-                // let mut output = File::create(filename.as_ref())?;
-                // f.write(iso, &mut output)?;
                 let mut out = File::create(filename)?;
                 f.write(iso, &mut out)?;
                 count += 1;
@@ -115,7 +132,11 @@ impl Entry {
         Ok(count - start_count)
     }
 
-    pub fn read_filename<R: BufRead + Seek>(&mut self, reader: &mut R, str_tbl_addr: u64) -> io::Result<()> {
+    pub fn read_filename<R: BufRead + Seek>(
+        &mut self,
+        reader: &mut R,
+        str_tbl_addr: u64
+    ) -> io::Result<()> {
         let info = self.info_mut();
         if info.index == 0 {
             info.name = "/".to_owned();
@@ -168,7 +189,10 @@ impl FileEntry {
 }
 
 impl DirectoryEntry {
-    pub fn iter_contents<'a>(&'a self, fst: &'a Vec<Entry>) -> DirectoryIter<'a> {
+    pub fn iter_contents<'a>(
+        &'a self,
+        fst: &'a Vec<Entry>
+    ) -> DirectoryIter<'a> {
         DirectoryIter::new(self, fst)
     }
 }
