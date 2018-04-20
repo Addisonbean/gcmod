@@ -14,7 +14,8 @@ pub mod dol;
 pub mod app_loader;
 pub mod disassembler;
 
-const WRITE_CHUNK_SIZE: usize = 1048576; // 1048576 = 2^20 = 1MiB
+// 1048576 = 2^20 = 1MiB, there's no real good reason behind this choice
+const WRITE_CHUNK_SIZE: usize = 1048576; 
 
 pub fn write_section<R: Read, W: Write>(
     iso: &mut R,
@@ -35,5 +36,13 @@ pub fn write_section<R: Read, W: Write>(
     }
 
     Ok(())
+}
+
+pub fn align_to(n: u64, m: u64) -> u64 {
+    ((n / m) + (if n % m == 0 { 0 } else { 1 })) * m
+}
+
+pub fn align(n: u64) -> u64 {
+    align_to(n, 16)
 }
 

@@ -30,10 +30,10 @@ impl Game {
         let f = File::open(&filename)?;
         let mut iso = BufReader::new(f);
 
-        let header = Header::new(&mut iso)?;
-        let fst = FST::new(&mut iso, header.fst_addr)?;
-        let dol = DOLHeader::new(&mut iso, header.dol_addr)?;
-        let app_loader = Apploader::new(&mut iso)?;
+        let header = Header::new(&mut iso, 0)?;
+        let fst = FST::new(&mut iso, header.fst_offset)?;
+        let dol = DOLHeader::new(&mut iso, header.dol_offset)?;
+        let app_loader = Apploader::new(&mut iso, APPLOADER_OFFSET)?;
 
         Ok(Game {
             header,
@@ -90,7 +90,7 @@ impl Game {
     // DOL is the format of the main executable on a GameCube disk
     pub fn write_dol<W: Write>(&mut self, file: &mut W) -> io::Result<()> {
         println!("Writing DOL header...");
-        DOLHeader::write_to_disk(&mut self.iso, self.header.dol_addr, file)
+        DOLHeader::write_to_disk(&mut self.iso, self.header.dol_offset, file)
     }
 
     pub fn write_app_loader<W>(&mut self, file: &mut W) -> io::Result<()>
@@ -102,15 +102,15 @@ impl Game {
 
     pub fn write_fst<W: Write>(&mut self, file: &mut W) -> io::Result<()> {
         println!("Writing file system table...");
-        FST::write_to_disk(&mut self.iso, file, self.header.fst_addr)
+        FST::write_to_disk(&mut self.iso, file, self.header.fst_offset)
     }
 
     pub fn print_info(&self) {
         println!("Title: {}", self.header.title);
-        println!("GameID: {}", self.header.game_id);
-        println!("FST offset: {}", self.header.fst_addr);
-        println!("FST size: {} bytes", self.fst.entries.len() * 12);
-        println!("Main DOL offset: {}", self.header.dol_addr);
+        println!("GameID: {}{}", self.header.game_code, self.header.maker_code);
+        println!("FST offset: {}", self.header.fst_offset);
+        println!("FST size: {} bytes", self.fst.size);
+        println!("Main DOL offset: {}", self.header.dol_offset);
         println!("Main DOL entry point: {}", self.dol.entry_point);
         println!("Apploader size: {}", self.app_loader.total_size());
 
@@ -126,18 +126,42 @@ impl Game {
             APPLOADER_OFFSET,
             (self.app_loader.total_size(), "Apploader.ldr")
         );
-        regions.insert(self.header.dol_addr, (self.dol.dol_size, "Start.dol"));
-        regions.insert(self.header.fst_addr, (self.fst.size, "Game.toc"));
+        regions.insert(self.header.dol_offset, (self.dol.dol_size, "Start.dol"));
+        regions.insert(self.header.fst_offset, (self.fst.size, "Game.toc"));
 
         for (start, &(end, name)) in &regions {
             println!("{:#010x}-{:#010x}: {}", start, start + end as u64, name);
         }
     }
 
-    pub fn rebuild<P, W>(root_path: P, output: &mut W) -> io::Result<()>
-        where P: AsRef<Path>, W: Write
-    {
+    pub fn rebuild_systemdata<P: AsRef<Path>>(root_path: P) -> io::Result<()> {
+        // Apploader.ldr and Start.dol must exist before rebuilding Game.toc
+
+        let fst_path = root_path.as_ref().join("&&systemdata/Game.toc");
+        let mut fst_file = File::create(fst_path)?;
+        FST::rebuild(root_path.as_ref())?.write(&mut fst_file)?;
+
+        // Note: everything else must be rebuilt before the header can be,
+        // and the old header must still exist
+
+        let h = Header::rebuild(root_path.as_ref())?;
+        let header_path = root_path.as_ref().join("&&systemdata/ISO.hdr");
+        let mut header_file = File::create(header_path)?;
+        h.write(&mut header_file)?;
+
+        Ok(())
+    }
+
+    pub fn rebuild<P: AsRef<Path>, W: Write>(
+        root_path: P,
+        output: &mut W,
+        rebuild_files: bool
+    ) -> io::Result<()> {
         let mut bytes_written = 0;
+
+        if rebuild_files {
+            Game::rebuild_systemdata(root_path.as_ref())?;
+        }
 
         let files = Game::make_sections_btree(root_path.as_ref())?;
 
@@ -161,14 +185,14 @@ impl Game {
         let apploader_path = root.join("&&systemdata/Apploader.ldr");
         let dol_path = root.join("&&systemdata/Start.dol");
 
-        let header = Header::new(&mut File::open(&header_path)?)?;
+        let header = Header::new(&mut File::open(&header_path)?, 0)?;
         let fst = FST::new(&mut BufReader::new(File::open(&fst_path)?), 0)?;
 
         let mut tree = make_files_btree(&fst);
         tree.insert(0, header_path);
         tree.insert(APPLOADER_OFFSET, apploader_path);
-        tree.insert(header.fst_addr, fst_path);
-        tree.insert(header.dol_addr, dol_path);
+        tree.insert(header.fst_offset, fst_path);
+        tree.insert(header.dol_offset, dol_path);
 
         Ok(tree)
     }
@@ -203,11 +227,11 @@ fn fill_files_btree<P: AsRef<Path>>(
                     prefix.as_ref().join(&file.info.name)
                 );
             },
-            &Entry::Directory(ref dir) => {
+            &Entry::Directory(ref sub_dir) => {
                 fill_files_btree(
                     files,
-                    dir,
-                    prefix.as_ref().join(&dir.info.name),
+                    sub_dir,
+                    prefix.as_ref().join(&sub_dir.info.name),
                     fst
                 );
             },

@@ -8,6 +8,13 @@ use ::write_section;
 
 pub const ENTRY_SIZE: usize = 12;
 
+// writes in big endian
+fn write_int_to_buffer(num: u64, buf: &mut [u8]) {
+    for i in 0..buf.len() {
+        buf[i] = ((num >> 8 * (buf.len() - i - 1)) & 0xff) as u8;
+    }
+}
+
 #[derive(Debug)]
 pub struct EntryInfo {
     pub index: usize,
@@ -69,6 +76,23 @@ impl Entry {
             }),
             _ => return None,
         })
+    }
+
+    pub fn write<W: Write>(&self, output: &mut W) -> io::Result<()> {
+        let mut buf = [0; ENTRY_SIZE];
+        let name_offset = self.info().filename_offset;
+        if self.is_dir() { buf[0] = 1 }
+        write_int_to_buffer(name_offset, &mut buf[1..4]);
+
+        let (f2, f3) = match self {
+            &Entry::File(ref e) => (e.file_offset, e.length as u64),
+            &Entry::Directory(ref e) => (e.parent_index as u64, e.next_index as u64),
+        };
+
+        write_int_to_buffer(f2, &mut buf[4..8]);
+        write_int_to_buffer(f3, &mut buf[8..12]);
+
+        output.write_all(&buf[..])
     }
 
     pub fn info(&self) -> &EntryInfo {
@@ -163,6 +187,22 @@ impl Entry {
 
     pub fn as_file(&self) -> Option<&FileEntry> {
         if let &Entry::File(ref f) = self {
+            Some(f)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_dir_mut(&mut self) -> Option<&mut DirectoryEntry> {
+        if let &mut Entry::Directory(ref mut dir) = self {
+            Some(dir)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_file_mut(&mut self) -> Option<&mut FileEntry> {
+        if let &mut Entry::File(ref mut f) = self {
             Some(f)
         } else {
             None

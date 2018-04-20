@@ -1,8 +1,9 @@
 TODO
-* Add a way to specify a custom objdump path
 * Make Entry::new return a Result, not Option
 * Improve the cli options and subcommands, it could be more intuitive
+* Add an option to rebuild that doesn't rebuild the &&systemdata directory
 * Add more subcommands
+* Add a progress indicator for the rebuild command
 * Put it on codereview.stackexchange.com
 * Use expect more, unwrap less
 * More error handling, especially for corrupt isos
@@ -20,9 +21,14 @@ TODO
 * Anything in the source with a `TODO: ` label
 * Make methods or functions for adding sections or files to a btree map, maybe make a struct to generalize the thing going on with make\_sections\_btree
 * Improve error messages
+* Make consts for the default system data path and the files in there
+	* Maybe a property of Game that stores the filenames?
+* Add an argument to the `header_info` command to control the offset read in the file
+* When outputting to less, all the null bytes in Game.title show up, don't print or even store those
+* Write\_to\_disk methods to something like extract\_section
 
 Refactoring
 * Only make stuff public if it needs to be
 * Be consistent (argument order, naming, output, and other stuff)
-* Rename stuff
+* Rename stuff (apploader is still app\_loader is a few places, include the app\_loader filename itself, filename is sometimes file\_name)
 

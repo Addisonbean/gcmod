@@ -2,17 +2,13 @@ use std::io::{self, Read, Seek, SeekFrom, Write};
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use ::write_section;
+use ::{align_to, write_section};
 
 pub const APPLOADER_OFFSET: u64 = 0x2440;
 const APPLOADER_DATE_SIZE: usize = 0x0A;
 const APPLOADER_ENTRY_POINT_ADDR: u64 = 0x2450;
 const APPLOADER_ENTRY_POINT_SIZE: u64 = 0xA0;
 const APPLOADER_SIZE_ADDR: u64 = 0x2454;
-
-fn round_up_to_32(a: usize, b: usize) -> usize {
-    (((a + b) as f64 / 32.0).ceil() as usize) * 32
-}
 
 #[derive(Debug)]
 pub struct Apploader {
@@ -23,8 +19,8 @@ pub struct Apploader {
 }
 
 impl Apploader {
-    pub fn new<R: Read + Seek>(reader: &mut R) -> io::Result<Apploader> {
-        reader.seek(SeekFrom::Start(APPLOADER_OFFSET))?;
+    pub fn new<R: Read + Seek>(reader: &mut R, offset: u64) -> io::Result<Apploader> {
+        reader.seek(SeekFrom::Start(offset))?;
         let mut date = String::new();
         reader.take(APPLOADER_DATE_SIZE as u64).read_to_string(&mut date)?;
         
@@ -44,17 +40,17 @@ impl Apploader {
 
     pub fn total_size(&self) -> usize {
         // self.code_size + self.trailer_size
-        round_up_to_32(self.code_size, self.trailer_size)
+        align_to((self.code_size + self.trailer_size) as u64, 32) as usize
     }
 
     pub fn write_to_disk<R, W>(iso: &mut R, file: &mut W) -> io::Result<()>
         where R: Read + Seek, W: Write
     {
         iso.seek(SeekFrom::Start(APPLOADER_SIZE_ADDR))?;
-        let code_size = iso.read_u32::<BigEndian>()? as usize;
-        let trailer_size = iso.read_u32::<BigEndian>()? as usize;
+        let code_size = iso.read_u32::<BigEndian>()? as u64;
+        let trailer_size = iso.read_u32::<BigEndian>()? as u64;
         iso.seek(SeekFrom::Start(APPLOADER_OFFSET))?;
-        write_section(iso, round_up_to_32(code_size, trailer_size), file)
+        write_section(iso, align_to(code_size + trailer_size, 32) as usize, file)
     }
 }
 

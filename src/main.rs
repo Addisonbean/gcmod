@@ -3,12 +3,13 @@ extern crate clap;
 extern crate tempfile;
 
 use std::path::{Path, PathBuf};
-use std::io::{Seek, SeekFrom};
+use std::io::{BufReader, Seek, SeekFrom};
 use std::fs::File;
 
 use clap::{App, Arg, SubCommand, AppSettings};
 
 use gamecube_iso_assistant::Game;
+use gamecube_iso_assistant::header::Header;
 use gamecube_iso_assistant::dol::DOLHeader;
 use gamecube_iso_assistant::disassembler::Disassembler;
 
@@ -29,16 +30,21 @@ fn main() {
 
         .subcommand(SubCommand::with_name("disasm")
             .about("Disassemble the main DOL file from an iso.")
-            .arg(Arg::with_name("path_to_iso").short("-i").long("iso")
+            .arg(Arg::with_name("path_to_iso").short("i").long("iso")
                  .takes_value(true).required(true))
             .arg(Arg::with_name("objdump_path").long("objdump")
                  .takes_value(true).required(false)))
 
         .subcommand(SubCommand::with_name("rebuild")
             .about("Rebuilds an iso.")
-            .arg(Arg::with_name("path_to_iso").short("-i").long("iso")
+            .arg(Arg::with_name("path_to_iso").short("i").long("iso")
                  .takes_value(true).required(true))
-            .arg(Arg::with_name("path_to_root").short("-r").long("root")
+            .arg(Arg::with_name("path_to_root").short("r").long("root")
+                 .takes_value(true).required(true)))
+
+        .subcommand(SubCommand::with_name("header_info")
+            .about("Displays information on a header file")
+            .arg(Arg::with_name("path_to_header").short("h").long("header")
                  .takes_value(true).required(true)))
 
         .setting(AppSettings::SubcommandRequired);
@@ -59,7 +65,10 @@ fn main() {
             rebuild_iso(
                 cmd.value_of("path_to_root").unwrap(),
                 cmd.value_of("path_to_iso").unwrap(),
+                true,
             ),
+        ("header_info", Some(cmd)) =>
+            print_header_info(cmd.value_of("path_to_header").unwrap()),
         _ => (),
     }
 }
@@ -140,10 +149,33 @@ fn disassemble_dol<P: AsRef<Path>>(input: P, objdump_path: Option<P>) {
     });
 }
 
-// TODO: don't unwrap/expect
-fn rebuild_iso<P: AsRef<Path>>(root_path: P, iso_path: P) {
+fn rebuild_iso<P>(root_path: P, iso_path: P, rebuild_systemdata: bool)
+    where P: AsRef<Path>
+{
     let mut iso = File::create(iso_path.as_ref()).unwrap(); 
-    Game::rebuild(root_path.as_ref(), &mut iso).expect("Couldn't rebuild iso.");
+    if let Err(e) = Game::rebuild(root_path.as_ref(), &mut iso, rebuild_systemdata) {
+        eprintln!("Couldn't rebuild iso.");
+        println!("{:?}", e);
+    }
+}
+
+fn print_header_info<P: AsRef<Path>>(header_path: P) {
+    let f = match File::open(header_path.as_ref()) {
+        Ok(f) => f,
+        Err(_) => {
+            println!("Couldn't open header");
+            return;
+        },
+    };
+    let header = match Header::new(&mut BufReader::new(f), 0) {
+        Ok(h) => h,
+        Err(_) => {
+            println!("Invalid header");
+            return;
+        },
+    };
+
+    header.print_info();
 }
 
 fn try_to_open_game<P: AsRef<Path>>(path: P) -> Option<Game> {
