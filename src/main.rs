@@ -25,7 +25,10 @@ fn main() {
 
         .subcommand(SubCommand::with_name("info")
             .about("Display information about the ROM.")
-            .arg(Arg::with_name("iso_path").required(true)))
+            .arg(Arg::with_name("iso_path").required(true))
+            .arg(Arg::with_name("type").short("t").long("type")
+                 .takes_value(true).required(false)
+                 .possible_values(&["header"])))
 
         .subcommand(SubCommand::with_name("disasm")
             .about("Disassemble the main DOL file from an iso.")
@@ -40,11 +43,6 @@ fn main() {
             .arg(Arg::with_name("root_path").short("r").long("root")
                  .takes_value(true).required(true)))
 
-        // TODO: try reading it as an iso, then as a header
-        .subcommand(SubCommand::with_name("header_info")
-            .about("Displays information on a header file")
-            .arg(Arg::with_name("header_path").required(true)))
-
         .setting(AppSettings::SubcommandRequired);
     match opts.get_matches().subcommand() {
         ("extract", Some(cmd)) => 
@@ -53,7 +51,10 @@ fn main() {
                 cmd.value_of("root_path").unwrap(),
             ),
         ("info", Some(cmd)) => 
-            print_iso_info(cmd.value_of("iso_path").unwrap()),
+            get_info(
+                cmd.value_of("iso_path").unwrap(),
+                cmd.value_of("type")
+            ),
         ("disasm", Some(cmd)) =>
             disassemble_dol(
                 cmd.value_of("iso_path").unwrap(),
@@ -65,8 +66,6 @@ fn main() {
                 cmd.value_of("iso_path").unwrap(),
                 true,
             ),
-        ("header_info", Some(cmd)) =>
-            print_header_info(cmd.value_of("header_path").unwrap()),
         _ => (),
     }
 }
@@ -88,6 +87,7 @@ fn print_iso_info<P: AsRef<Path>>(input: P) {
     try_to_open_game(input).as_ref().map(Game::print_info);
 }
 
+// is this a bit much for main.rs? Move it to disassembler.rs?
 fn disassemble_dol<P: AsRef<Path>>(input: P, objdump_path: Option<P>) {
     try_to_open_game(input.as_ref()).map(|mut game| {
         let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
@@ -157,6 +157,14 @@ fn rebuild_iso<P>(root_path: P, iso_path: P, rebuild_systemdata: bool)
     }
 }
 
+fn get_info<P: AsRef<Path>>(path: P, section: Option<&str>) {
+    match section {
+        Some("header") => print_header_info(path),
+        Some(_) => unreachable!(),
+        None => print_iso_info(path),
+    }
+}
+
 fn print_header_info<P: AsRef<Path>>(header_path: P) {
     let f = match File::open(header_path.as_ref()) {
         Ok(f) => f,
@@ -165,15 +173,24 @@ fn print_header_info<P: AsRef<Path>>(header_path: P) {
             return;
         },
     };
-    let header = match Header::new(&mut BufReader::new(f), 0) {
-        Ok(h) => h,
-        Err(_) => {
-            println!("Invalid header");
+
+    match Header::new(&mut BufReader::new(f), 0) {
+        Ok(h) => {
+            h.print_info();
             return;
         },
-    };
+        _ => (),
+    }
 
-    header.print_info();
+    match Game::open(header_path.as_ref()) {
+        Ok(g) => {
+            g.header.print_info();
+            return;
+        },
+        _ => (),
+    }
+
+    println!("Invalid header or iso");
 }
 
 fn try_to_open_game<P: AsRef<Path>>(path: P) -> Option<Game> {
