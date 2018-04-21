@@ -114,6 +114,7 @@ impl Game {
         println!("Main DOL entry point: {}", self.dol.entry_point);
         println!("Apploader size: {}", self.app_loader.total_size());
 
+        println!("\nROM Layout:");
         self.print_layout();
     }
 
@@ -185,8 +186,10 @@ impl Game {
         let apploader_path = root.join("&&systemdata/Apploader.ldr");
         let dol_path = root.join("&&systemdata/Start.dol");
 
-        let header = Header::new(&mut File::open(&header_path)?, 0)?;
-        let fst = FST::new(&mut BufReader::new(File::open(&fst_path)?), 0)?;
+        let mut header_buf = BufReader::new(File::open(&header_path)?);
+        let header = Header::new(&mut header_buf, 0)?;
+        let mut fst_buf = BufReader::new(File::open(&fst_path)?);
+        let fst = FST::new(&mut fst_buf, 0)?;
 
         let mut tree = make_files_btree(&fst);
         tree.insert(0, header_path);

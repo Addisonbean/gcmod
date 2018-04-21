@@ -8,8 +8,7 @@ use std::collections::BTreeMap;
 use byteorder::{BigEndian, ReadBytesExt};
 
 use self::entry::{DirectoryEntry, Entry, EntryInfo, FileEntry, ENTRY_SIZE};
-use app_loader::{APPLOADER_OFFSET, Apploader};
-use dol::DOLHeader;
+use app_loader::APPLOADER_OFFSET;
 use ::{align, write_section};
 
 pub const FST_OFFSET_OFFSET: u64 = 0x0424; 

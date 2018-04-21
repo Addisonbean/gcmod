@@ -1,6 +1,5 @@
 TODO
 * Make Entry::new return a Result, not Option
-* Improve the cli options and subcommands, it could be more intuitive
 * Add an option to rebuild that doesn't rebuild the &&systemdata directory
 * Add more subcommands
 * Add a progress indicator for the rebuild command
@@ -24,6 +23,7 @@ TODO
 * Make consts for the default system data path and the files in there
 	* Maybe a property of Game that stores the filenames?
 * Add an argument to the `header_info` command to control the offset read in the file
+	* Add offsets for other commands too
 * When outputting to less, all the null bytes in Game.title show up, don't print or even store those
 * Write\_to\_disk methods to something like extract\_section
 

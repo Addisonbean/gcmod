@@ -18,57 +18,55 @@ fn main() {
 
         .subcommand(SubCommand::with_name("extract")
             .about("Extract a ROM's contents to disk.")
-            .arg(Arg::with_name("path_to_iso").short("i").long("iso")
+            .arg(Arg::with_name("iso_path").short("i").long("iso")
                  .takes_value(true).required(true))
-            .arg(Arg::with_name("output_dir").short("o").long("output")
+            .arg(Arg::with_name("root_path").short("r").long("root")
                  .takes_value(true).required(true)))
 
         .subcommand(SubCommand::with_name("info")
             .about("Display information about the ROM.")
-            .arg(Arg::with_name("path_to_iso").short("i").long("iso")
-                 .takes_value(true).required(true)))
+            .arg(Arg::with_name("iso_path").required(true)))
 
         .subcommand(SubCommand::with_name("disasm")
             .about("Disassemble the main DOL file from an iso.")
-            .arg(Arg::with_name("path_to_iso").short("i").long("iso")
-                 .takes_value(true).required(true))
+            .arg(Arg::with_name("iso_path").required(true))
             .arg(Arg::with_name("objdump_path").long("objdump")
                  .takes_value(true).required(false)))
 
         .subcommand(SubCommand::with_name("rebuild")
             .about("Rebuilds an iso.")
-            .arg(Arg::with_name("path_to_iso").short("i").long("iso")
+            .arg(Arg::with_name("iso_path").short("i").long("iso")
                  .takes_value(true).required(true))
-            .arg(Arg::with_name("path_to_root").short("r").long("root")
+            .arg(Arg::with_name("root_path").short("r").long("root")
                  .takes_value(true).required(true)))
 
+        // TODO: try reading it as an iso, then as a header
         .subcommand(SubCommand::with_name("header_info")
             .about("Displays information on a header file")
-            .arg(Arg::with_name("path_to_header").short("h").long("header")
-                 .takes_value(true).required(true)))
+            .arg(Arg::with_name("header_path").required(true)))
 
         .setting(AppSettings::SubcommandRequired);
     match opts.get_matches().subcommand() {
         ("extract", Some(cmd)) => 
             extract_iso(
-                cmd.value_of("path_to_iso").unwrap(),
-                cmd.value_of("output_dir").unwrap(),
+                cmd.value_of("iso_path").unwrap(),
+                cmd.value_of("root_path").unwrap(),
             ),
         ("info", Some(cmd)) => 
-            print_iso_info(cmd.value_of("path_to_iso").unwrap()),
+            print_iso_info(cmd.value_of("iso_path").unwrap()),
         ("disasm", Some(cmd)) =>
             disassemble_dol(
-                cmd.value_of("path_to_iso").unwrap(),
+                cmd.value_of("iso_path").unwrap(),
                 cmd.value_of("objdump_path"),
             ),
         ("rebuild", Some(cmd)) =>
             rebuild_iso(
-                cmd.value_of("path_to_root").unwrap(),
-                cmd.value_of("path_to_iso").unwrap(),
+                cmd.value_of("root_path").unwrap(),
+                cmd.value_of("iso_path").unwrap(),
                 true,
             ),
         ("header_info", Some(cmd)) =>
-            print_header_info(cmd.value_of("path_to_header").unwrap()),
+            print_header_info(cmd.value_of("header_path").unwrap()),
         _ => (),
     }
 }

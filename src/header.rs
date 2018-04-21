@@ -1,4 +1,4 @@
-use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufReader, BufRead, Read, Seek, SeekFrom, Write};
 use std::fs::File;
 use std::path::Path;
 
@@ -7,9 +7,8 @@ use std::path::Path;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-use dol::DOL_OFFSET_OFFSET;
-use fst::{FST, FST_OFFSET_OFFSET};
-use app_loader::{APPLOADER_OFFSET, Apploader};
+use fst::FST;
+use app_loader::APPLOADER_OFFSET;
 use ::align;
 
 pub const GAME_HEADER_SIZE: usize = 0x2440;
@@ -90,7 +89,8 @@ pub struct HeaderInformation {
 }
 
 impl HeaderInformation {
-    pub fn new<R: Read>(file: &mut R, offset: usize) -> io::Result<HeaderInformation> {
+    pub fn new<R: Read + Seek>(file: &mut R, offset: u64) -> io::Result<HeaderInformation> {
+        file.seek(SeekFrom::Start(offset as u64))?;
         Ok(HeaderInformation {
             debug_monitor_size: file.read_u32::<BigEndian>()?,
             simulated_memory_size: file.read_u32::<BigEndian>()?,
@@ -117,7 +117,7 @@ impl HeaderInformation {
 }
 
 impl Header {
-    pub fn new<R: Read + Seek>(file: &mut R, offset: usize) -> io::Result<Header> {
+    pub fn new<R: BufRead + Seek>(file: &mut R, offset: usize) -> io::Result<Header> {
         file.seek(SeekFrom::Start(offset as u64))?;
         let mut game_code = String::with_capacity(GAME_CODE_SIZE);
         file.by_ref().take(GAME_CODE_SIZE as u64)
@@ -138,8 +138,18 @@ impl Header {
             // return some kind of error
         }
 
-        let mut title = String::with_capacity(GAME_NAME_SIZE);
-        file.by_ref().take(GAME_NAME_SIZE as u64).read_to_string(&mut title)?;
+        let mut title = Vec::with_capacity(GAME_NAME_SIZE);
+        let bytes_read = file.by_ref().take(GAME_NAME_SIZE as u64).read_until(0, &mut title)?;
+        if title.last() == Some(&0) {
+            let last_index = title.len() - 1;
+            title.remove(last_index);
+        }
+        let title = String::from_utf8(title).map_err(|_| io::Error::new(
+            io::ErrorKind::Other,
+            "ROM Title was not valid UTF-8"
+        ))?;
+
+        file.seek(SeekFrom::Current(GAME_NAME_SIZE as i64 - bytes_read as i64))?;
 
         let debug_monitor_offset = file.read_u32::<BigEndian>()?;
         let debug_monitor_load_addr = file.read_u32::<BigEndian>()?;
@@ -156,7 +166,9 @@ impl Header {
         let user_length = file.read_u32::<BigEndian>()?;
         let unknown = file.read_u32::<BigEndian>()?;
 
-        let information = HeaderInformation::new(file, 0)?;
+        let pos = file.seek(SeekFrom::Current(0))?;
+
+        let information = HeaderInformation::new(file, pos)?;
 
         Ok(Header {
             game_code,
