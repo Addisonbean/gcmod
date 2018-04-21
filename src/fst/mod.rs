@@ -9,7 +9,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 
 use self::entry::{DirectoryEntry, Entry, EntryInfo, FileEntry, ENTRY_SIZE};
 use app_loader::APPLOADER_OFFSET;
-use ::{align, write_section};
+use ::{align, extract_section};
 
 pub const FST_OFFSET_OFFSET: u64 = 0x0424; 
 pub const FST_SIZE_OFFSET: u64 = 0x0428;
@@ -83,7 +83,7 @@ impl FST {
         })
     }
 
-    pub fn write_files<P, R, F>(
+    pub fn extract_filesystem<P, R, F>(
         &mut self, 
         path: P, 
         iso: &mut R, 
@@ -91,10 +91,10 @@ impl FST {
     ) -> io::Result<usize>
         where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
     {
-        self.entries[0].write_with_name(path, &self.entries, iso, callback)
+        self.entries[0].extract_with_name(path, &self.entries, iso, callback)
     }
 
-    pub fn write_to_disk<R, W>(
+    pub fn extract<R, W>(
         iso: &mut R,
         file: &mut W,
         fst_offset: u64
@@ -105,7 +105,7 @@ impl FST {
         let size = iso.read_u32::<BigEndian>()? as usize;
 
         iso.seek(SeekFrom::Start(fst_offset))?;
-        write_section(iso, size, file)
+        extract_section(iso, size, file)
     }
 
     pub fn rebuild<P: AsRef<Path>>(root_path: P) -> io::Result<FST> {

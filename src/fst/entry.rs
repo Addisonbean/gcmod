@@ -4,7 +4,7 @@ use std::path::Path;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use ::write_section;
+use ::extract_section;
 
 pub const ENTRY_SIZE: usize = 12;
 
@@ -110,7 +110,7 @@ impl Entry {
     }
 
     // move to Game?
-    pub fn write_with_name<P, R, F>(
+    pub fn extract_with_name<P, R, F>(
         &self,
         filename: P,
         fst: &Vec<Entry>,
@@ -119,10 +119,10 @@ impl Entry {
     ) -> io::Result<usize>
         where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
     {
-        self.write_with_name_and_count(filename, fst, iso, 0, callback)
+        self.extract_with_name_and_count(filename, fst, iso, 0, callback)
     }
 
-    pub fn write_with_name_and_count<P, R, F>(
+    pub fn extract_with_name_and_count<P, R, F>(
         &self,
         filename: P,
         fst: &Vec<Entry>,
@@ -137,7 +137,7 @@ impl Entry {
             &Entry::Directory(ref d) => {
                 create_dir_all(filename.as_ref())?;
                 for e in d.iter_contents(fst) {
-                    count += e.write_with_name_and_count(
+                    count += e.extract_with_name_and_count(
                         filename.as_ref().join(&e.info().name),
                         fst,
                         iso,
@@ -148,7 +148,7 @@ impl Entry {
             },
             &Entry::File(ref f) => {
                 let mut out = File::create(filename)?;
-                f.write(iso, &mut out)?;
+                f.extract(iso, &mut out)?;
                 count += 1;
                 callback(count);
             },
@@ -220,11 +220,11 @@ impl Entry {
 
 impl FileEntry {
     // TODO: rename this
-    pub fn write<R, W>(&self, reader: &mut R, file: &mut W) -> io::Result<()>
+    pub fn extract<R, W>(&self, reader: &mut R, file: &mut W) -> io::Result<()>
         where R: BufRead + Seek, W: Write
     {
         reader.seek(SeekFrom::Start(self.file_offset))?;
-        write_section(reader, self.length, file)
+        extract_section(reader, self.length, file)
     }
 }
 

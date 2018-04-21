@@ -9,7 +9,7 @@ use app_loader::{APPLOADER_OFFSET, Apploader};
 use dol::DOLHeader;
 use fst::FST;
 use fst::entry::{DirectoryEntry, Entry};
-use ::write_section;
+use ::extract_section;
 
 const ROM_SIZE: usize = 0x57058000;
 
@@ -52,57 +52,57 @@ impl Game {
         create_dir(sys_data_path)?;
 
         let mut header_file = File::create(sys_data_path.join("ISO.hdr"))?;
-        self.write_game_header(&mut header_file)?;
+        self.extract_game_header(&mut header_file)?;
 
         let mut fst_file = File::create(sys_data_path.join("Game.toc"))?;
-        self.write_fst(&mut fst_file)?;
+        self.extract_fst(&mut fst_file)?;
 
-        let mut app_loader_file =
+        let mut apploader_file =
             File::create(sys_data_path.join("Apploader.ldr"))?;
-        self.write_app_loader(&mut app_loader_file)?;
+        self.extract_app_loader(&mut apploader_file)?;
 
         let mut dol_file = File::create(sys_data_path.join("Start.dol"))?;
-        self.write_dol(&mut dol_file)?;
+        self.extract_dol(&mut dol_file)?;
 
-        self.write_files(path.as_ref())?;
+        self.extract_files(path.as_ref())?;
         Ok(())
     }
 
-    pub fn write_files<P>(&mut self, path: P) -> io::Result<usize>
+    pub fn extract_files<P>(&mut self, path: P) -> io::Result<usize>
         where P: AsRef<Path>
     {
         let count = self.fst.file_count;
-        let res = self.fst.write_files(path, &mut self.iso, &|c|
+        let res = self.fst.extract_filesystem(path, &mut self.iso, &|c|
             print!("\r{}/{} files written.", c, count)
         );
         println!("\n{} bytes written.", self.fst.total_file_system_size);
         res
     }
 
-    pub fn write_game_header<W>(&mut self, file: &mut W) -> io::Result<()>
+    pub fn extract_game_header<W>(&mut self, file: &mut W) -> io::Result<()>
         where W: Write
     {
         println!("Writing game header...");
         self.iso.seek(SeekFrom::Start(0))?;
-        write_section(&mut self.iso, GAME_HEADER_SIZE, file)
+        extract_section(&mut self.iso, GAME_HEADER_SIZE, file)
     }
 
     // DOL is the format of the main executable on a GameCube disk
-    pub fn write_dol<W: Write>(&mut self, file: &mut W) -> io::Result<()> {
+    pub fn extract_dol<W: Write>(&mut self, file: &mut W) -> io::Result<()> {
         println!("Writing DOL header...");
-        DOLHeader::write_to_disk(&mut self.iso, self.header.dol_offset, file)
+        DOLHeader::extract(&mut self.iso, self.header.dol_offset, file)
     }
 
-    pub fn write_app_loader<W>(&mut self, file: &mut W) -> io::Result<()>
+    pub fn extract_app_loader<W>(&mut self, file: &mut W) -> io::Result<()>
         where W: Write
     {
         println!("Writing app loader...");
-        Apploader::write_to_disk(&mut self.iso, file)
+        Apploader::extract(&mut self.iso, file)
     }
 
-    pub fn write_fst<W: Write>(&mut self, file: &mut W) -> io::Result<()> {
+    pub fn extract_fst<W: Write>(&mut self, file: &mut W) -> io::Result<()> {
         println!("Writing file system table...");
-        FST::write_to_disk(&mut self.iso, file, self.header.fst_offset)
+        FST::extract(&mut self.iso, file, self.header.fst_offset)
     }
 
     pub fn print_info(&self) {
@@ -171,7 +171,7 @@ impl Game {
             bytes_written = offset;
             let mut file = File::open(root_path.as_ref().join(filename))?;
             let size = file.metadata()?.len();
-            write_section(&mut file, size as usize, output)?;
+            extract_section(&mut file, size as usize, output)?;
             bytes_written += size;
         }
         write_zeros(ROM_SIZE - bytes_written as usize, output)

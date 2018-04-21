@@ -91,7 +91,7 @@ fn print_iso_info<P: AsRef<Path>>(input: P) {
 fn disassemble_dol<P: AsRef<Path>>(input: P, objdump_path: Option<P>) {
     try_to_open_game(input.as_ref()).map(|mut game| {
         let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
-        if let Err(_) = game.write_dol(tmp_file.as_mut()) {
+        if let Err(_) = game.extract_dol(tmp_file.as_mut()) {
             eprintln!("Could not extract dol.");
         }
         tmp_file.seek(SeekFrom::Start(0)).unwrap();
@@ -151,6 +151,7 @@ fn rebuild_iso<P>(root_path: P, iso_path: P, rebuild_systemdata: bool)
     where P: AsRef<Path>
 {
     let mut iso = File::create(iso_path.as_ref()).unwrap(); 
+    // Game::rebuild(root_path.as_ref(), &mut iso, rebuild_systemdata).unwrap();
     if let Err(e) = Game::rebuild(root_path.as_ref(), &mut iso, rebuild_systemdata) {
         eprintln!("Couldn't rebuild iso.");
         println!("{:?}", e);

@@ -17,7 +17,7 @@ pub mod disassembler;
 // 1048576 = 2^20 = 1MiB, there's no real good reason behind this choice
 const WRITE_CHUNK_SIZE: usize = 1048576; 
 
-pub fn write_section<R: Read, W: Write>(
+pub fn extract_section<R: Read, W: Write>(
     iso: &mut R,
     bytes: usize,
     file: &mut W

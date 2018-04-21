@@ -3,7 +3,7 @@ use std::cmp::max;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use ::write_section;
+use ::extract_section;
 
 const TEXT_SEG_COUNT: usize = 7;
 const DATA_SEG_COUNT: usize = 11;
@@ -109,7 +109,7 @@ impl DOLHeader {
         })
     }
 
-    pub fn write_to_disk<R: Read + Seek, W: Write>(
+    pub fn extract<R: Read + Seek, W: Write>(
         iso: &mut R,
         dol_addr: u64,
         file: &mut W
@@ -141,7 +141,7 @@ impl DOLHeader {
 
         iso.seek(SeekFrom::Start(dol_addr))?;
 
-        write_section(iso, dol_size as usize, file)
+        extract_section(iso, dol_size as usize, file)
     }
 }
 

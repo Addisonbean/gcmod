@@ -2,7 +2,7 @@ use std::io::{self, Read, Seek, SeekFrom, Write};
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use ::{align_to, write_section};
+use ::{align_to, extract_section};
 
 pub const APPLOADER_OFFSET: u64 = 0x2440;
 const APPLOADER_DATE_SIZE: usize = 0x0A;
@@ -43,14 +43,14 @@ impl Apploader {
         align_to((self.code_size + self.trailer_size) as u64, 32) as usize
     }
 
-    pub fn write_to_disk<R, W>(iso: &mut R, file: &mut W) -> io::Result<()>
+    pub fn extract<R, W>(iso: &mut R, file: &mut W) -> io::Result<()>
         where R: Read + Seek, W: Write
     {
         iso.seek(SeekFrom::Start(APPLOADER_SIZE_ADDR))?;
         let code_size = iso.read_u32::<BigEndian>()? as u64;
         let trailer_size = iso.read_u32::<BigEndian>()? as u64;
         iso.seek(SeekFrom::Start(APPLOADER_OFFSET))?;
-        write_section(iso, align_to(code_size + trailer_size, 32) as usize, file)
+        extract_section(iso, align_to(code_size + trailer_size, 32) as usize, file)
     }
 }
 

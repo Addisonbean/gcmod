@@ -8,23 +8,19 @@ TODO
 * Provide better documentation in the code, especially in methods like FST::new
 * Wouldn't it be more efficient to pass the iso BufReader directly to Entry::new, rather than copying it to an Array and passing that?
 * Make an API (it'd be a separate repo of course)
-* It's easy to call something like AppLoader::new forgetting to seek to the right spot first
 * Add an option for "info" to display values in hexadecimal (make a macro that accepts an option for hex output?)
 * Add a command to disassemble an iso, plus an option to only disassemble a given dol file
 * Add options or commands specifically for apploaders, dol files, etc... so the whole iso isn't needed
 * Add a GCRebuilder compatibility mode (this'd just add weird extra to some files, but that may not even be necessary idk)
 * Improve the info subcommand output
-* Add an option to rebuild Game.toc, the Start.dol header, and ISO.hdr to account for changes
-	* Compress the contents/pack all the information to not waste any space, so there's more room for mods
 * Anything in the source with a `TODO: ` label
 * Make methods or functions for adding sections or files to a btree map, maybe make a struct to generalize the thing going on with make\_sections\_btree
 * Improve error messages
 * Make consts for the default system data path and the files in there
 	* Maybe a property of Game that stores the filenames?
-* Add an argument to the `header_info` command to control the offset read in the file
+* Add an argument to the `info -t header` command to control the offset read in the file
 	* Add offsets for other commands too
-* When outputting to less, all the null bytes in Game.title show up, don't print or even store those
-* Write\_to\_disk methods to something like extract\_section
+* Add an option not to rebuild any of the files (should that be the default? probably?)
 
 Refactoring
 * Only make stuff public if it needs to be
