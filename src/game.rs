@@ -165,15 +165,18 @@ impl Game {
         }
 
         let files = Game::make_sections_btree(root_path.as_ref())?;
+        let total_files = files.len();
 
-        for (&offset, filename) in &files {
+        for (i, (&offset, filename)) in files.iter().enumerate() {
             write_zeros((offset - bytes_written) as usize, output)?;
             bytes_written = offset;
             let mut file = File::open(root_path.as_ref().join(filename))?;
             let size = file.metadata()?.len();
             extract_section(&mut file, size as usize, output)?;
             bytes_written += size;
+            print!("\r{}/{} files written.", i + 1, total_files);
         }
+        println!("\n{} bytes written.", bytes_written);
         write_zeros(ROM_SIZE - bytes_written as usize, output)
     }
 
@@ -201,6 +204,8 @@ impl Game {
     }
 }
 
+// TODO: break this up into chunks if `count` is too large
+// to avoid huge allocations
 fn write_zeros<W: Write>(count: usize, output: &mut W) -> io::Result<()> {
     lazy_static! {
         static ref ZEROS: Mutex<Vec<u8>> = Mutex::new(vec![]);

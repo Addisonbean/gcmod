@@ -166,10 +166,9 @@ impl FST {
 
     // this needs to be documented, specifically how rb_info is being used
     // it's also a mess...
-    fn rebuild_dir_info<P>(path: P, rb_info: &mut RebuildInfo) -> io::Result<usize>
+    fn rebuild_dir_info<P>(path: P, rb_info: &mut RebuildInfo) -> io::Result<()>
         where P: AsRef<Path>
     {
-        let mut total_child_count = 0;
         for e in read_dir(path.as_ref())? {
             let e = e?;
 
@@ -187,30 +186,19 @@ impl FST {
 
             if e.file_type()?.is_dir() {
                 let old_index = rb_info.parent_index;
-                // Use this once Option::filter stabilizes (it'll be soon):
-                // let children_count = read_dir(e.path())?.filter_map(|e|
-                    // e.as_ref().ok().and_then(|e|
-                        // e.file_name().to_str().filter(|s| !s.starts_with("."))
-                    // )
-                // ).count();
-                let children_count = read_dir(e.path())?.filter(|e|
-                    e.as_ref().ok().and_then(|e|
-                        e.file_name().to_str().map(|s| !s.starts_with("."))
-                    ).unwrap_or(false)
-                ).count();
 
-                total_child_count += children_count;
                 let entry = Entry::Directory(DirectoryEntry {
                     info,
                     parent_index: old_index.unwrap_or(0),
-                    next_index: index + children_count + 1
+                    next_index: index + 1
                 });
                 let index = rb_info.entries.len();
                 rb_info.entries.push(entry);
                 rb_info.parent_index = Some(index);
 
-                let sub_count = FST::rebuild_dir_info(e.path(), rb_info)?;
-                rb_info.entries[index].as_dir_mut().unwrap().next_index += sub_count;
+                let count_before = rb_info.entries.len();
+                FST::rebuild_dir_info(e.path(), rb_info)?;
+                rb_info.entries[index].as_dir_mut().unwrap().next_index += rb_info.entries.len() - count_before;
                 rb_info.parent_index = old_index;
             } else {
                 let entry = Entry::File(FileEntry {
@@ -223,7 +211,7 @@ impl FST {
                 rb_info.entries.push(entry);
             }
         }
-        Ok(total_child_count)
+        Ok(())
     }
 
     pub fn write<W: Write>(&self, writer: &mut W) -> io::Result<()> {

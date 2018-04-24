@@ -1,4 +1,8 @@
 TODO
+
+* Next: the `TODO` above write\_zeros in game.rs
+* Get rid of unnecessary padding/alignment from align (remove it in various places and see if it breaks)
+
 * Make Entry::new return a Result, not Option
 * Add an option to rebuild that doesn't rebuild the &&systemdata directory
 * Add more subcommands
