@@ -1,8 +1,11 @@
 TODO
 
-* Next: the `TODO` above write\_zeros in game.rs
 * Get rid of unnecessary padding/alignment from align (remove it in various places and see if it breaks)
+* Improve README.md, explain how to use it
+* Add a way to provide an offset, and fix out where that is in the iso (which file it's part of and the offset in the file, or which segment in the dol, etc...)
+* Warn if the iso to be rebuilt already exists
 
+* Keep working on the documentation on Google Docs
 * Make Entry::new return a Result, not Option
 * Add an option to rebuild that doesn't rebuild the &&systemdata directory
 * Add more subcommands

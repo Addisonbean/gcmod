@@ -3,13 +3,14 @@ use std::path::{Path, PathBuf};
 use std::io::{self, BufReader, Seek, SeekFrom, Write};
 use std::collections::BTreeMap;
 use std::sync::Mutex;
+use std::cmp;
 
 use header::Header;
 use app_loader::{APPLOADER_OFFSET, Apploader};
 use dol::DOLHeader;
 use fst::FST;
 use fst::entry::{DirectoryEntry, Entry};
-use ::extract_section;
+use ::{extract_section, WRITE_CHUNK_SIZE};
 
 const ROM_SIZE: usize = 0x57058000;
 
@@ -75,7 +76,6 @@ impl Game {
         let res = self.fst.extract_filesystem(path, &mut self.iso, &|c|
             print!("\r{}/{} files written.", c, count)
         );
-        println!("\n{} bytes written.", self.fst.total_file_system_size);
         res
     }
 
@@ -174,9 +174,8 @@ impl Game {
             let size = file.metadata()?.len();
             extract_section(&mut file, size as usize, output)?;
             bytes_written += size;
-            print!("\r{}/{} files written.", i + 1, total_files);
+            print!("\r{}/{} files added.", i + 1, total_files);
         }
-        println!("\n{} bytes written.", bytes_written);
         write_zeros(ROM_SIZE - bytes_written as usize, output)
     }
 
@@ -204,15 +203,19 @@ impl Game {
     }
 }
 
-// TODO: break this up into chunks if `count` is too large
-// to avoid huge allocations
 fn write_zeros<W: Write>(count: usize, output: &mut W) -> io::Result<()> {
     lazy_static! {
         static ref ZEROS: Mutex<Vec<u8>> = Mutex::new(vec![]);
     }
     let mut zeros = ZEROS.lock().unwrap();
-    zeros.resize(count, 0);
-    output.write_all(&zeros[..])
+    let block_size = cmp::min(count, WRITE_CHUNK_SIZE);
+    zeros.resize(block_size, 0);
+    for i in 0..(count / WRITE_CHUNK_SIZE) {
+        output.write_all(
+            &zeros[..cmp::min(WRITE_CHUNK_SIZE, count - WRITE_CHUNK_SIZE * i)]
+        )?;
+    }
+    Ok(())
 }
 
 fn make_files_btree(fst: &FST) -> BTreeMap<u64, PathBuf> {
