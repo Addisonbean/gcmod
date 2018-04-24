@@ -9,7 +9,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 
 use self::entry::{DirectoryEntry, Entry, EntryInfo, FileEntry, ENTRY_SIZE};
 use app_loader::APPLOADER_OFFSET;
-use ::{align, align_to, extract_section};
+use ::{align, extract_section};
 
 pub const FST_OFFSET_OFFSET: u64 = 0x0424; 
 pub const FST_SIZE_OFFSET: u64 = 0x0428;
@@ -71,6 +71,11 @@ impl FST {
 
         for e in entries.iter_mut() {
             e.read_filename(iso, str_tbl_addr)?;
+            // if let Some(f) = e.as_file() {
+                // println!("name = {}", f.info.name);
+                // println!("offset = {:#x}", f.file_offset);
+                // println!();
+            // }
         }
 
         let size = (iso.seek(SeekFrom::Current(0))? - fst_offset) as usize;
@@ -206,7 +211,7 @@ impl FST {
                     file_offset: rb_info.file_offset,
                     length: e.metadata()?.len() as usize,
                 });
-                rb_info.file_offset += align_to(entry.as_file().unwrap().length as u64, 4);
+                rb_info.file_offset += align(entry.as_file().unwrap().length as u64);
                 rb_info.file_count += 1;
                 rb_info.entries.push(entry);
             }

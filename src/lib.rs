@@ -17,6 +17,9 @@ pub mod disassembler;
 // 1048576 = 2^20 = 1MiB, there's no real good reason behind this choice
 pub const WRITE_CHUNK_SIZE: usize = 1048576; 
 
+// 32KiB
+pub const DEFAULT_ALIGNMENT: u64 = 32 * 1024; 
+
 pub fn extract_section<R: Read, W: Write>(
     iso: &mut R,
     bytes: usize,
@@ -43,6 +46,6 @@ pub fn align_to(n: u64, m: u64) -> u64 {
 }
 
 pub fn align(n: u64) -> u64 {
-    align_to(n, 16)
+    align_to(n, DEFAULT_ALIGNMENT)
 }
 

@@ -4,7 +4,11 @@ TODO
 * Improve README.md, explain how to use it
 * Add a way to provide an offset, and fix out where that is in the iso (which file it's part of and the offset in the file, or which segment in the dol, etc...)
 * Warn if the iso to be rebuilt already exists
+* Create an error if there isn't enough free space (and offer a suggestion like decreasing the alignment)
 
+* Add a way to check for free space (display this after rebuilding?)
+* Add a way to specify a certain alignment for files matching a regex?
+	* Also a way to specify a different default alignment
 * Keep working on the documentation on Google Docs
 * Make Entry::new return a Result, not Option
 * Add an option to rebuild that doesn't rebuild the &&systemdata directory
@@ -33,4 +37,7 @@ Refactoring
 * Only make stuff public if it needs to be
 * Be consistent (argument order, naming, output, and other stuff)
 * Rename stuff (apploader is still app\_loader is a few places, include the app\_loader filename itself, filename is sometimes file\_name)
+
+This is golden:
+http://www.gc-forever.com/forums/viewtopic.php?p=1487&sid=a5f89e4c4ee820c1305b27babf50eccd#p1487
 
