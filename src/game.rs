@@ -76,6 +76,7 @@ impl Game {
         let res = self.fst.extract_filesystem(path, &mut self.iso, &|c|
             print!("\r{}/{} files written.", c, count)
         );
+        println!();
         res
     }
 
@@ -176,6 +177,7 @@ impl Game {
             bytes_written += size;
             print!("\r{}/{} files added.", i + 1, total_files);
         }
+        println!();
         write_zeros(ROM_SIZE - bytes_written as usize, output)
     }
 
@@ -210,7 +212,7 @@ fn write_zeros<W: Write>(count: usize, output: &mut W) -> io::Result<()> {
     let mut zeros = ZEROS.lock().unwrap();
     let block_size = cmp::min(count, WRITE_CHUNK_SIZE);
     zeros.resize(block_size, 0);
-    for i in 0..(count / WRITE_CHUNK_SIZE) {
+    for i in 0..(count / WRITE_CHUNK_SIZE + 1) {
         output.write_all(
             &zeros[..cmp::min(WRITE_CHUNK_SIZE, count - WRITE_CHUNK_SIZE * i)]
         )?;

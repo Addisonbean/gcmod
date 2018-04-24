@@ -9,7 +9,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 
 use self::entry::{DirectoryEntry, Entry, EntryInfo, FileEntry, ENTRY_SIZE};
 use app_loader::APPLOADER_OFFSET;
-use ::{align, extract_section};
+use ::{align, align_to, extract_section};
 
 pub const FST_OFFSET_OFFSET: u64 = 0x0424; 
 pub const FST_SIZE_OFFSET: u64 = 0x0428;
@@ -206,7 +206,7 @@ impl FST {
                     file_offset: rb_info.file_offset,
                     length: e.metadata()?.len() as usize,
                 });
-                rb_info.file_offset += align(entry.as_file().unwrap().length as u64);
+                rb_info.file_offset += align_to(entry.as_file().unwrap().length as u64, 4);
                 rb_info.file_count += 1;
                 rb_info.entries.push(entry);
             }
