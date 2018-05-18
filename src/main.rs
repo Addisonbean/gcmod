@@ -28,7 +28,9 @@ fn main() {
             .arg(Arg::with_name("iso_path").required(true))
             .arg(Arg::with_name("type").short("t").long("type")
                  .takes_value(true).required(false)
-                 .possible_values(&["header"])))
+                 .possible_values(&["header"]))
+            .arg(Arg::with_name("offset").short("o").long("offset")
+                 .takes_value(true).required(false)))
 
         .subcommand(SubCommand::with_name("disasm")
             .about("Disassemble the main DOL file from an iso.")
@@ -53,7 +55,8 @@ fn main() {
         ("info", Some(cmd)) => 
             get_info(
                 cmd.value_of("iso_path").unwrap(),
-                cmd.value_of("type")
+                cmd.value_of("type"),
+                cmd.value_of("offset"),
             ),
         ("disasm", Some(cmd)) =>
             disassemble_dol(
@@ -75,7 +78,7 @@ fn extract_iso<P: AsRef<Path>>(input: P, output: P) {
     if output.exists() {
         eprintln!("Error: {} already exists.", output.display());
     } else {
-        try_to_open_game(input.as_ref()).map(|mut game|
+        try_to_open_game(input.as_ref(), 0).map(|mut game|
             if let Err(_) = game.extract(output) {
                 eprintln!("Failed to write files.");
             }
@@ -83,13 +86,13 @@ fn extract_iso<P: AsRef<Path>>(input: P, output: P) {
     }
 }
 
-fn print_iso_info<P: AsRef<Path>>(input: P) {
-    try_to_open_game(input).as_ref().map(Game::print_info);
+fn print_iso_info<P: AsRef<Path>>(input: P, offset: u64) {
+    try_to_open_game(input, offset).as_ref().map(Game::print_info);
 }
 
 // is this a bit much for main.rs? Move it to disassembler.rs?
 fn disassemble_dol<P: AsRef<Path>>(input: P, objdump_path: Option<P>) {
-    try_to_open_game(input.as_ref()).map(|mut game| {
+    try_to_open_game(input.as_ref(), 0).map(|mut game| {
         let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
         if let Err(_) = game.extract_dol(tmp_file.as_mut()) {
             eprintln!("Could not extract dol.");
@@ -158,15 +161,18 @@ fn rebuild_iso<P>(root_path: P, iso_path: P, rebuild_systemdata: bool)
     }
 }
 
-fn get_info<P: AsRef<Path>>(path: P, section: Option<&str>) {
-    match section {
-        Some("header") => print_header_info(path),
-        Some(_) => unreachable!(),
-        None => print_iso_info(path),
+fn get_info<P: AsRef<Path>>(path: P, section: Option<&str>, offset: Option<&str>) {
+    let offset = offset.map(|s| s.parse::<u64>().unwrap()).unwrap_or(0);
+    println!("offset = {}", offset);
+
+    if section == Some("header") {
+        print_header_info(path, offset);
+    } else {
+        print_iso_info(path, offset);
     }
 }
 
-fn print_header_info<P: AsRef<Path>>(header_path: P) {
+fn print_header_info<P: AsRef<Path>>(header_path: P, offset: u64) {
     let f = match File::open(header_path.as_ref()) {
         Ok(f) => f,
         Err(_) => {
@@ -175,7 +181,7 @@ fn print_header_info<P: AsRef<Path>>(header_path: P) {
         },
     };
 
-    match Header::new(&mut BufReader::new(f), 0) {
+    match Header::new(&mut BufReader::new(f), offset) {
         Ok(h) => {
             h.print_info();
             return;
@@ -183,7 +189,7 @@ fn print_header_info<P: AsRef<Path>>(header_path: P) {
         _ => (),
     }
 
-    match Game::open(header_path.as_ref()) {
+    match Game::open(header_path.as_ref(), 0) {
         Ok(g) => {
             g.header.print_info();
             return;
@@ -194,12 +200,12 @@ fn print_header_info<P: AsRef<Path>>(header_path: P) {
     println!("Invalid header or iso");
 }
 
-fn try_to_open_game<P: AsRef<Path>>(path: P) -> Option<Game> {
+fn try_to_open_game<P: AsRef<Path>>(path: P, offset: u64) -> Option<Game> {
     let path = path.as_ref();
     if !path.exists() {
         eprintln!("Error: the iso {} doesn't exist.", path.display());
     } else {
-        match Game::open(path) {
+        match Game::open(path, offset) {
             Ok(game) => return Some(game),
             Err(_) => eprintln!("Invalid iso: {}.", path.display()),
         }

@@ -117,7 +117,7 @@ impl HeaderInformation {
 }
 
 impl Header {
-    pub fn new<R: BufRead + Seek>(file: &mut R, offset: usize) -> io::Result<Header> {
+    pub fn new<R: BufRead + Seek>(file: &mut R, offset: u64) -> io::Result<Header> {
         file.seek(SeekFrom::Start(offset as u64))?;
         let mut game_code = String::with_capacity(GAME_CODE_SIZE);
         file.by_ref().take(GAME_CODE_SIZE as u64)

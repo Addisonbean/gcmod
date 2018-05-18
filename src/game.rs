@@ -27,14 +27,14 @@ pub struct Game {
 
 impl Game {
 
-    pub fn open<P: AsRef<Path>>(filename: P) -> io::Result<Game> {
+    pub fn open<P: AsRef<Path>>(filename: P, offset: u64) -> io::Result<Game> {
         let f = File::open(&filename)?;
         let mut iso = BufReader::new(f);
 
-        let header = Header::new(&mut iso, 0)?;
-        let fst = FST::new(&mut iso, header.fst_offset)?;
-        let dol = DOLHeader::new(&mut iso, header.dol_offset)?;
-        let app_loader = Apploader::new(&mut iso, APPLOADER_OFFSET)?;
+        let header = Header::new(&mut iso, offset)?;
+        let fst = FST::new(&mut iso, offset + header.fst_offset)?;
+        let dol = DOLHeader::new(&mut iso, offset + header.dol_offset)?;
+        let app_loader = Apploader::new(&mut iso, offset + APPLOADER_OFFSET)?;
 
         Ok(Game {
             header,

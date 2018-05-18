@@ -1,8 +1,7 @@
 TODO
 
-* Get rid of unnecessary padding/alignment from align (remove it in various places and see if it breaks)
 * Improve README.md, explain how to use it
-* Add a way to provide an offset, and fix out where that is in the iso (which file it's part of and the offset in the file, or which segment in the dol, etc...)
+* Add a way to provide an offset, and figure out where that is in the iso (which file it's part of and the offset in the file, or which segment in the dol, etc...)
 * Warn if the iso to be rebuilt already exists
 * Create an error if there isn't enough free space (and offer a suggestion like decreasing the alignment)
 
@@ -29,8 +28,7 @@ TODO
 * Improve error messages
 * Make consts for the default system data path and the files in there
 	* Maybe a property of Game that stores the filenames?
-* Add an argument to the `info -t header` command to control the offset read in the file
-	* Add offsets for other commands too
+* Add offsets for other commands (info has it now)
 * Add an option not to rebuild any of the files (should that be the default? probably?)
 
 Refactoring
