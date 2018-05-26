@@ -9,6 +9,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 
 use self::entry::{DirectoryEntry, Entry, EntryInfo, FileEntry, ENTRY_SIZE};
 use app_loader::APPLOADER_OFFSET;
+use layout_section::LayoutSection;
 use ::{align, extract_section};
 
 pub const FST_OFFSET_OFFSET: u64 = 0x0424; 
@@ -28,6 +29,7 @@ pub struct FST {
      * `file_count` is different from `entries.len()` in that
      * it doesn't include directories
      */
+    pub offset: u64,
     pub file_count: usize,
     pub total_file_system_size: usize,
     pub entries: Vec<Entry>,
@@ -35,10 +37,10 @@ pub struct FST {
 }
 
 impl FST {
-    pub fn new<R>(iso: &mut R, fst_offset: u64) -> io::Result<FST>
+    pub fn new<R>(iso: &mut R, offset: u64) -> io::Result<FST>
         where R: BufRead + Seek
     {
-        iso.seek(SeekFrom::Start(fst_offset))?;
+        iso.seek(SeekFrom::Start(offset))?;
 
         let mut entry_buffer: [u8; ENTRY_SIZE] = [0; ENTRY_SIZE];
         iso.take(ENTRY_SIZE as u64).read_exact(&mut entry_buffer)?;
@@ -71,16 +73,12 @@ impl FST {
 
         for e in entries.iter_mut() {
             e.read_filename(iso, str_tbl_addr)?;
-            // if let Some(f) = e.as_file() {
-                // println!("name = {}", f.info.name);
-                // println!("offset = {:#x}", f.file_offset);
-                // println!();
-            // }
         }
 
-        let size = (iso.seek(SeekFrom::Current(0))? - fst_offset) as usize;
+        let size = (iso.seek(SeekFrom::Current(0))? - offset) as usize;
 
         Ok(FST {
+            offset,
             file_count,
             total_file_system_size,
             entries,
@@ -150,10 +148,8 @@ impl FST {
         let size = rb_info.entries.len() * 12 + rb_info.filename_offset as usize;
         let total_file_system_size = rb_info.file_offset as usize;
 
-        let extra =
-            align(APPLOADER_OFFSET + appldr_size as u64) +
-            align(size as u64) +
-            align(dol_size);
+        let offset = align(APPLOADER_OFFSET + appldr_size as u64);
+        let extra = offset + align(size as u64) + align(dol_size);
 
         for e in &mut rb_info.entries {
             if let Some(ref mut f) = e.as_file_mut() {
@@ -162,6 +158,7 @@ impl FST {
         }
 
         Ok(FST {
+            offset,
             file_count: rb_info.file_count,
             entries: rb_info.entries,
             total_file_system_size,
@@ -231,6 +228,22 @@ impl FST {
             writer.write(&null_byte[..])?;
         }
         Ok(())
+    }
+
+    pub fn string_table_layout_section<'a>(&self) -> LayoutSection<'a> {
+        let fst_size = self.entries.len() * ENTRY_SIZE;
+        LayoutSection::new(
+            "String Table",
+            self.offset + fst_size as u64,
+            self.size - fst_size,
+        )
+    }
+}
+
+impl<'a> From<&'a FST> for LayoutSection<'a> {
+    fn from(fst: &'a FST) -> LayoutSection<'a> {
+        let size = fst.entries.len() * ENTRY_SIZE;
+        LayoutSection::new("FST", fst.offset, size)
     }
 }
 

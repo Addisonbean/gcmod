@@ -9,6 +9,7 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 use fst::FST;
 use app_loader::APPLOADER_OFFSET;
+use layout_section::LayoutSection;
 use ::align;
 
 pub const GAME_HEADER_SIZE: usize = 0x2440;
@@ -276,6 +277,12 @@ impl Header {
         header.max_fst_size = fst_size;
 
         Ok(header)
+    }
+}
+
+impl<'a> From<&'a Header> for LayoutSection<'a> {
+    fn from(_: &'a Header) -> LayoutSection<'a> {
+        LayoutSection::new("Header", 0, GAME_HEADER_SIZE)
     }
 }
 

@@ -4,6 +4,7 @@ use std::path::Path;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
+use layout_section::LayoutSection;
 use ::extract_section;
 
 pub const ENTRY_SIZE: usize = 12;
@@ -226,6 +227,10 @@ impl FileEntry {
         reader.seek(SeekFrom::Start(self.file_offset))?;
         extract_section(reader, self.length, file)
     }
+
+    pub fn layout_section(&self) -> LayoutSection {
+        LayoutSection::new(&self.info.name, self.file_offset, self.length)
+    }
 }
 
 impl DirectoryEntry {
@@ -268,6 +273,13 @@ impl<'a> Iterator for DirectoryIter<'a> {
         } else {
             None
         }
+    }
+}
+
+// TODO: include the full path from the root in the name here
+impl<'a> From<&'a FileEntry> for LayoutSection<'a> {
+    fn from(f: &'a FileEntry) -> LayoutSection<'a> {
+        LayoutSection::new(&f.info.name, f.file_offset, f.length)
     }
 }
 

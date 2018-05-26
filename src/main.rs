@@ -8,7 +8,7 @@ use std::fs::File;
 
 use clap::{App, Arg, SubCommand, AppSettings};
 
-use gamecube_iso_assistant::Game;
+use gamecube_iso_assistant::{Game, ROM_SIZE};
 use gamecube_iso_assistant::header::Header;
 use gamecube_iso_assistant::dol::DOLHeader;
 use gamecube_iso_assistant::disassembler::Disassembler;
@@ -21,6 +21,12 @@ fn main() {
             .arg(Arg::with_name("iso_path").short("i").long("iso")
                  .takes_value(true).required(true))
             .arg(Arg::with_name("root_path").short("r").long("root")
+                 .takes_value(true).required(true)))
+
+        .subcommand(SubCommand::with_name("find-offset")
+            .about("Display information about an offset in the ROM.")
+            .arg(Arg::with_name("iso_path").required(true))
+            .arg(Arg::with_name("offset").short("o").long("offset")
                  .takes_value(true).required(true)))
 
         .subcommand(SubCommand::with_name("info")
@@ -57,6 +63,11 @@ fn main() {
                 cmd.value_of("iso_path").unwrap(),
                 cmd.value_of("type"),
                 cmd.value_of("offset"),
+            ),
+        ("find-offset", Some(cmd)) => 
+            find_offset(
+                cmd.value_of("iso_path").unwrap(),
+                cmd.value_of("offset").unwrap(),
             ),
         ("disasm", Some(cmd)) =>
             disassemble_dol(
@@ -163,7 +174,6 @@ fn rebuild_iso<P>(root_path: P, iso_path: P, rebuild_systemdata: bool)
 
 fn get_info<P: AsRef<Path>>(path: P, section: Option<&str>, offset: Option<&str>) {
     let offset = offset.map(|s| s.parse::<u64>().unwrap()).unwrap_or(0);
-    println!("offset = {}", offset);
 
     if section == Some("header") {
         print_header_info(path, offset);
@@ -198,6 +208,24 @@ fn print_header_info<P: AsRef<Path>>(header_path: P, offset: u64) {
     }
 
     println!("Invalid header or iso");
+}
+
+fn find_offset<P: AsRef<Path>>(header_path: P, offset: &str) {
+    let offset = match offset.parse::<u64>() {
+        Ok(o) if (o as usize) < ROM_SIZE => o,
+        _ => {
+            println!("Invalid offset. Offset must be a number > 0 and < {}", ROM_SIZE);
+            return;
+        },
+    };
+    try_to_open_game(header_path.as_ref(), 0).map(|game| {
+        // TODO: if None, tell if there's no data beyond this point
+        // Also provide a message saying it's just blank space if it's None
+        match game.rom_layout().find_offset(offset) {
+            Some(s) => println!("{}", s),
+            None => println!("There isn't any data at this offset."),
+        }
+    });
 }
 
 fn try_to_open_game<P: AsRef<Path>>(path: P, offset: u64) -> Option<Game> {

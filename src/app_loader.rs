@@ -2,6 +2,7 @@ use std::io::{self, Read, Seek, SeekFrom, Write};
 
 use byteorder::{ReadBytesExt, BigEndian};
 
+use layout_section::LayoutSection;
 use ::{align_to, extract_section};
 
 pub const APPLOADER_OFFSET: u64 = 0x2440;
@@ -51,6 +52,12 @@ impl Apploader {
         let trailer_size = iso.read_u32::<BigEndian>()? as u64;
         iso.seek(SeekFrom::Start(APPLOADER_OFFSET))?;
         extract_section(iso, align_to(code_size + trailer_size, 32) as usize, file)
+    }
+}
+
+impl<'a> From<&'a Apploader> for LayoutSection<'a> {
+    fn from(a: &'a Apploader) -> LayoutSection<'a> {
+        LayoutSection::new("Apploader", APPLOADER_OFFSET, a.total_size())
     }
 }
 

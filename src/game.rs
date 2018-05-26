@@ -4,17 +4,17 @@ use std::io::{self, BufReader, Seek, SeekFrom, Write};
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 use std::cmp;
+use std::cmp::Ordering::*;
 
-use header::Header;
+use header::{GAME_HEADER_SIZE, Header};
 use app_loader::{APPLOADER_OFFSET, Apploader};
 use dol::DOLHeader;
 use fst::FST;
 use fst::entry::{DirectoryEntry, Entry};
+use layout_section::LayoutSection;
 use ::{extract_section, WRITE_CHUNK_SIZE};
 
-const ROM_SIZE: usize = 0x57058000;
-
-use header::GAME_HEADER_SIZE;
+pub const ROM_SIZE: usize = 0x57058000;
 
 #[derive(Debug)]
 pub struct Game {
@@ -23,6 +23,8 @@ pub struct Game {
     pub fst: FST,
     pub dol: DOLHeader,
     pub iso: BufReader<File>,
+    // Once set, this field needs to stay sorted.
+    // Is there a good way to ensure that?
 }
 
 impl Game {
@@ -32,9 +34,9 @@ impl Game {
         let mut iso = BufReader::new(f);
 
         let header = Header::new(&mut iso, offset)?;
-        let fst = FST::new(&mut iso, offset + header.fst_offset)?;
-        let dol = DOLHeader::new(&mut iso, offset + header.dol_offset)?;
         let app_loader = Apploader::new(&mut iso, offset + APPLOADER_OFFSET)?;
+        let dol = DOLHeader::new(&mut iso, offset + header.dol_offset)?;
+        let fst = FST::new(&mut iso, offset + header.fst_offset)?;
 
         Ok(Game {
             header,
@@ -43,6 +45,37 @@ impl Game {
             dol,
             iso,
         })
+    }
+
+    pub fn rom_layout(&self) -> ROMLayout {
+        let size = 5
+            + self.dol.text_segments.len()
+            + self.dol.data_segments.len()
+            + self.fst.entries.len();
+
+        let mut layout = Vec::with_capacity(size);
+
+        layout.push((&self.header).into());
+        layout.push((&self.app_loader).into());
+
+        layout.push((&self.dol).into());
+
+        for e in self.dol.iter_segments() {
+            if e.size != 0 {
+                layout.push(e.into());
+            }
+        }
+
+        layout.push((&self.fst).into());
+        layout.push(self.fst.string_table_layout_section());
+
+        for e in &self.fst.entries {
+            e.as_file().map(|f| layout.push(f.into()));
+        }
+
+        layout.sort_unstable();
+
+        ROMLayout(layout)
     }
 
     pub fn extract<P: AsRef<Path>>(&mut self, path: P) -> io::Result<()> {
@@ -249,6 +282,30 @@ fn fill_files_btree<P: AsRef<Path>>(
                 );
             },
         };
+    }
+}
+
+pub struct ROMLayout<'a>(Vec<LayoutSection<'a>>);
+
+impl<'a> ROMLayout<'a> {
+    pub fn find_offset(&self, offset: u64) -> Option<&LayoutSection> {
+        // I don't use `Iterator::find` here because I can't break early once
+        // a section is passed that has a greater starting offset than `offset`
+
+        // Also, is there some builtin iterator or something that'll do this?
+        // Probably...
+        for s in &self.0 {
+            match s.compare_offset(offset) {
+                Less => return None,
+                Equal => return Some(s),
+                Greater => (),
+            }
+        }
+        None
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 

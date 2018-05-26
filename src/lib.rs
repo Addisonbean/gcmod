@@ -7,12 +7,14 @@ use std::cmp::min;
 
 mod game;
 pub use game::Game;
+pub use game::ROM_SIZE;
 
 pub mod header;
 pub mod fst;
 pub mod dol;
 pub mod app_loader;
 pub mod disassembler;
+pub mod layout_section;
 
 // 1048576 = 2^20 = 1MiB, there's no real good reason behind this choice
 pub const WRITE_CHUNK_SIZE: usize = 1048576; 

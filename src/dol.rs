@@ -1,16 +1,28 @@
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::cmp::max;
+use std::iter::Iterator;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
+use layout_section::LayoutSection;
 use ::extract_section;
 
 const TEXT_SEG_COUNT: usize = 7;
 const DATA_SEG_COUNT: usize = 11;
 
-pub const DOL_OFFSET_OFFSET: u64 = 0x0420; 
+pub const DOL_OFFSET_OFFSET: u64 = 0x0420;
+pub const DOL_HEADER_SIZE: usize = 0x100;
 
-#[derive(Copy, Clone, Debug)]
+const SECTION_LABELS: [&'static str; 18] = [
+    ".text0", ".text1", ".text2", ".text3",
+    ".text4", ".text5", ".text6",
+
+    ".data0", ".data1", ".data2", ".data3",
+    ".data4", ".data5", ".data6", ".data7",
+    ".data8", ".data9", ".data10",
+];
+
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub enum SegmentType {
     Text, Data
 }
@@ -32,6 +44,7 @@ pub struct Segment {
     pub size: u64,
     pub loading_address: u64,
     pub seg_type: SegmentType,
+    pub seg_num: u64,
 }
 
 impl Segment {
@@ -41,6 +54,7 @@ impl Segment {
             size: 0,
             loading_address: 0,
             seg_type: SegmentType::Text,
+            seg_num: 0,
         }
     }
 
@@ -50,12 +64,24 @@ impl Segment {
             size: 0,
             loading_address: 0,
             seg_type: SegmentType::Data,
+            seg_num: 0,
         }
+    }
+
+    // TODO: this is a very unsafe/naive function...
+    pub fn to_str(self) -> &'static str {
+        use self::SegmentType::*;
+        let m = match self.seg_type {
+            Text => 0,
+            Data => 1,
+        };
+        SECTION_LABELS[TEXT_SEG_COUNT * m + self.seg_num as usize]
     }
 }
 
 #[derive(Debug)]
 pub struct DOLHeader {
+    pub offset: u64,
     pub text_segments: [Segment; TEXT_SEG_COUNT],
     pub data_segments: [Segment; DATA_SEG_COUNT],
     pub dol_size: usize,
@@ -78,6 +104,7 @@ impl DOLHeader {
             for ref mut seg_type in segs.iter_mut() {
                 for i in 0..seg_type.len() {
                     seg_type[i].start = file.read_u32::<BigEndian>()? as u64;
+                    seg_type[i].seg_num = i as u64;
                 }
             }
 
@@ -102,11 +129,16 @@ impl DOLHeader {
             .map(|s| s.start + s.size).max().unwrap() as usize;
 
         Ok(DOLHeader {
+            offset,
             text_segments,
             data_segments,
             dol_size,
             entry_point,
         })
+    }
+
+    pub fn iter_segments(&self) -> impl Iterator<Item = &Segment> {
+        self.text_segments.iter().chain(self.data_segments.iter())
     }
 
     pub fn extract<R: Read + Seek, W: Write>(
@@ -142,6 +174,18 @@ impl DOLHeader {
         iso.seek(SeekFrom::Start(dol_addr))?;
 
         extract_section(iso, dol_size as usize, file)
+    }
+}
+
+impl<'a> From<&'a DOLHeader> for LayoutSection<'a> {
+    fn from(d: &'a DOLHeader) -> LayoutSection<'a> {
+        LayoutSection::new("DOL", d.offset, DOL_HEADER_SIZE)
+    }
+}
+
+impl<'a> From<&'a Segment> for LayoutSection<'a> {
+    fn from(s: &'a Segment) -> LayoutSection<'a> {
+        LayoutSection::new(s.to_str(), s.start, s.size as usize)
     }
 }
 
