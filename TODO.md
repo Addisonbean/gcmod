@@ -1,7 +1,5 @@
 TODO
 
-* Add a way to get the full path of an Entry, and then store that in LayoutSection
-* Add the type field to LayoutSection, then change name to filename
 * Add traits like WriteToDisk, Extract, Rebuild, Info (or just use Display?), etc... (where would these be helpful? Anywhere?)
 	* This would at least make methods for extracting and such more consistent (the argument orders are inconsistent right now, just look at Game::extract\_dol vs. Game::extract\_fst)
 	* An ISOSection trait?
@@ -38,12 +36,15 @@ TODO
 	* Maybe a property of Game that stores the filenames?
 * Add offsets for other commands (info has it now)
 * Add an option not to rebuild any of the files (should that be the default? probably?)
+* Add a way to only extract a single file
+* Accept hex numbers as inputs
 
 Refactoring
 * Only make stuff public if it needs to be
 * Be consistent (argument order, naming, output, and other stuff)
 * Rename stuff (apploader is still app\_loader is a few places, include the app\_loader filename itself, filename is sometimes file\_name)
 	* Be consistent with offset vs. start vs. start\_... and things like addr vs offset, size vs. len
+	* Rust uses file\_name, so I should probably replace usages of filename with that
 
 This is golden:
 http://www.gc-forever.com/forums/viewtopic.php?p=1487&sid=a5f89e4c4ee820c1305b27babf50eccd#p1487

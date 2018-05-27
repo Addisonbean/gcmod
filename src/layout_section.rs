@@ -1,21 +1,29 @@
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::cmp::Ordering::*;
 use std::marker::PhantomData;
+use std::borrow::Cow;
 use std::fmt;
 
 #[derive(Debug)]
 pub struct LayoutSection<'a> {
-    pub name: &'a str,
+    pub name: Cow<'a, str>,
+    pub section_type: &'static str,
     pub start: u64,
     pub end: u64,
     _private_field: PhantomData<()>,
 }
 
 impl<'a> LayoutSection<'a> {
-    pub fn new(name: &str, start: u64, len: usize) -> LayoutSection {
+    pub fn new(
+        name: impl Into<Cow<'a, str>>,
+        section_type: &'static str,
+        start: u64,
+        len: usize
+    ) -> LayoutSection<'a> {
         let end = start + len as u64 - if len == 0 { 0 } else { 1 };
         LayoutSection {
-            name,
+            name: name.into(),
+            section_type,
             start,
             end,
             _private_field: PhantomData,
@@ -63,8 +71,8 @@ impl<'a> Ord for LayoutSection<'a> {
 
 impl<'a> fmt::Display for LayoutSection<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Name: {}\nStart: {}\nEnd: {}\nSize: {} bytes\nType: not implemented",
-               self.name, self.start, self.end, self.len())
+        write!(f, "Name: {}\nType: {}\nStart: {}\nEnd: {}\nSize: {} bytes",
+               self.name, self.section_type, self.start, self.end, self.len())
     }
 }
 

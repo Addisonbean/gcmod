@@ -4,6 +4,7 @@ use std::path::Path;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
+use fst::FST;
 use layout_section::LayoutSection;
 use ::extract_section;
 
@@ -21,6 +22,11 @@ pub struct EntryInfo {
     pub index: usize,
     pub name: String,
     pub filename_offset: u64,
+
+    // This field isn't actually stored in the ROM. It's the index of the
+    // directory that the entry is in. For directories, this'll be the same
+    // as the parent_index field.
+    pub directory_index: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -49,7 +55,11 @@ pub enum Entry {
 }
 
 impl Entry {
-    pub fn new(entry: &[u8], index: usize) -> Option<Entry> {
+    pub fn new(
+        entry: &[u8],
+        index: usize,
+        directory_index: Option<usize>
+    ) -> Option<Entry> {
         // TODO: don't use unwrap when this is implemented
         // https://github.com/rust-lang/rfcs/issues/935
         let filename_offset =
@@ -62,6 +72,7 @@ impl Entry {
             index,
             name,
             filename_offset,
+            directory_index,
         };
 
         Some(match entry[0] {
@@ -228,8 +239,9 @@ impl FileEntry {
         extract_section(reader, self.length, file)
     }
 
-    pub fn layout_section(&self) -> LayoutSection {
-        LayoutSection::new(&self.info.name, self.file_offset, self.length)
+    pub fn layout_section<'a>(&self, fst: &FST) -> LayoutSection<'a> {
+        // LayoutSection::new(&f.info.name[..], "File", f.file_offset, f.length)
+        LayoutSection::new(fst.get_full_path(&self.info), "File", self.file_offset, self.length)
     }
 }
 
@@ -273,13 +285,6 @@ impl<'a> Iterator for DirectoryIter<'a> {
         } else {
             None
         }
-    }
-}
-
-// TODO: include the full path from the root in the name here
-impl<'a> From<&'a FileEntry> for LayoutSection<'a> {
-    fn from(f: &'a FileEntry) -> LayoutSection<'a> {
-        LayoutSection::new(&f.info.name, f.file_offset, f.length)
     }
 }
 

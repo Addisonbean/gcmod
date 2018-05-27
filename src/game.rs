@@ -70,7 +70,7 @@ impl Game {
         layout.push(self.fst.string_table_layout_section());
 
         for e in &self.fst.entries {
-            e.as_file().map(|f| layout.push(f.into()));
+            e.as_file().map(|f| layout.push(f.layout_section(&self.fst)));
         }
 
         layout.sort_unstable();

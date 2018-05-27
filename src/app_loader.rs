@@ -57,7 +57,7 @@ impl Apploader {
 
 impl<'a> From<&'a Apploader> for LayoutSection<'a> {
     fn from(a: &'a Apploader) -> LayoutSection<'a> {
-        LayoutSection::new("Apploader", APPLOADER_OFFSET, a.total_size())
+        LayoutSection::new("&&systemdata/Apploader.ldr", "Apploader", APPLOADER_OFFSET, a.total_size())
     }
 }
 

@@ -282,7 +282,7 @@ impl Header {
 
 impl<'a> From<&'a Header> for LayoutSection<'a> {
     fn from(_: &'a Header) -> LayoutSection<'a> {
-        LayoutSection::new("Header", 0, GAME_HEADER_SIZE)
+        LayoutSection::new("ISO.hdr", "Header", 0, GAME_HEADER_SIZE)
     }
 }
 

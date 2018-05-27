@@ -44,7 +44,7 @@ impl FST {
 
         let mut entry_buffer: [u8; ENTRY_SIZE] = [0; ENTRY_SIZE];
         iso.take(ENTRY_SIZE as u64).read_exact(&mut entry_buffer)?;
-        let root = Entry::new(&entry_buffer, 0)
+        let root = Entry::new(&entry_buffer, 0, None)
             .expect("Couldn't read root fst entry.");
         let entry_count = root.as_dir()
             .expect("Root fst wasn't a directory.")
@@ -56,20 +56,36 @@ impl FST {
         let mut file_count = 0;
         let mut total_file_system_size = 0;
 
+        // (parent_index, index of next file not in the parent dir)
+        let mut parents = vec![(0, entry_count)];
+
         for index in 1..entry_count {
+            while parents.last().map(|d| d.1) == Some(index) {
+                parents.pop();
+            }
+
             iso.take(ENTRY_SIZE as u64).read_exact(&mut entry_buffer)?;
-            let e = Entry::new(&entry_buffer, index)
+            let e =
+                Entry::new(&entry_buffer, index, parents.last().map(|d| d.0))
                 .unwrap_or_else(||
                     panic!("Couldn't read fst entry {}.", index)
                 );
-            if let Some(f) = e.as_file() {
-                file_count += 1;
-                total_file_system_size += f.length;
+            match &e {
+                Entry::File(f) => {
+                    file_count += 1;
+                    total_file_system_size += f.length;
+                },
+                Entry::Directory(d) => {
+                    // parent_dirs.push((index, d.next_index - index - 1));
+                    parents.push((index, d.next_index));
+                },
             }
+
             entries.push(e);
         }
 
         let str_tbl_addr = iso.seek(SeekFrom::Current(0))?;
+
 
         for e in entries.iter_mut() {
             e.read_filename(iso, str_tbl_addr)?;
@@ -126,6 +142,7 @@ impl FST {
                 index: 0,
                 name: "/".to_owned(),
                 filename_offset: 0,
+                directory_index: None,
             },
             parent_index: 0,
             // this value will need to be updated later on
@@ -182,6 +199,7 @@ impl FST {
                 index,
                 name: e.file_name().to_string_lossy().into_owned(),
                 filename_offset: rb_info.filename_offset,
+                directory_index: rb_info.parent_index,
             };
             // plus 1 for the null byte
             rb_info.filename_offset += info.name.chars().count() as u64 + 1;
@@ -233,17 +251,43 @@ impl FST {
     pub fn string_table_layout_section<'a>(&self) -> LayoutSection<'a> {
         let fst_size = self.entries.len() * ENTRY_SIZE;
         LayoutSection::new(
+            "&&systemdata/Game.toc",
             "String Table",
             self.offset + fst_size as u64,
             self.size - fst_size,
         )
+    }
+
+    pub fn get_parent_for_entry(&self, entry: &EntryInfo) -> Option<&Entry> {
+        entry.directory_index.map(|i| &self.entries[i])
+    }
+
+    pub fn get_full_path(&self, entry: &EntryInfo) -> String {
+        let mut parent = entry;
+        let mut names = vec![&entry.name];
+        loop {
+            parent = match self.get_parent_for_entry(parent) {
+                Some(p) => p.info(),
+                None => break,
+            };
+
+            names.push(&parent.name);
+        }
+        names.iter().rev().fold(String::new(), |mut path, name| {
+            match path.chars().last() {
+                Some(c) if c != '/' => path.push('/'),
+                _ => (),
+            }
+            path.push_str(name);
+            path
+        })
     }
 }
 
 impl<'a> From<&'a FST> for LayoutSection<'a> {
     fn from(fst: &'a FST) -> LayoutSection<'a> {
         let size = fst.entries.len() * ENTRY_SIZE;
-        LayoutSection::new("FST", fst.offset, size)
+        LayoutSection::new("&&systemdata/Game.toc", "File System Table", fst.offset, size)
     }
 }
 

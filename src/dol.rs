@@ -13,15 +13,6 @@ const DATA_SEG_COUNT: usize = 11;
 pub const DOL_OFFSET_OFFSET: u64 = 0x0420;
 pub const DOL_HEADER_SIZE: usize = 0x100;
 
-const SECTION_LABELS: [&'static str; 18] = [
-    ".text0", ".text1", ".text2", ".text3",
-    ".text4", ".text5", ".text6",
-
-    ".data0", ".data1", ".data2", ".data3",
-    ".data4", ".data5", ".data6", ".data7",
-    ".data8", ".data9", ".data10",
-];
-
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub enum SegmentType {
     Text, Data
@@ -68,14 +59,8 @@ impl Segment {
         }
     }
 
-    // TODO: this is a very unsafe/naive function...
-    pub fn to_str(self) -> &'static str {
-        use self::SegmentType::*;
-        let m = match self.seg_type {
-            Text => 0,
-            Data => 1,
-        };
-        SECTION_LABELS[TEXT_SEG_COUNT * m + self.seg_num as usize]
+    pub fn to_string(self) -> String {
+        self.seg_type.to_string(self.seg_num as usize)
     }
 }
 
@@ -103,7 +88,7 @@ impl DOLHeader {
 
             for ref mut seg_type in segs.iter_mut() {
                 for i in 0..seg_type.len() {
-                    seg_type[i].start = file.read_u32::<BigEndian>()? as u64;
+                    seg_type[i].start = offset + file.read_u32::<BigEndian>()? as u64;
                     seg_type[i].seg_num = i as u64;
                 }
             }
@@ -179,13 +164,13 @@ impl DOLHeader {
 
 impl<'a> From<&'a DOLHeader> for LayoutSection<'a> {
     fn from(d: &'a DOLHeader) -> LayoutSection<'a> {
-        LayoutSection::new("DOL", d.offset, DOL_HEADER_SIZE)
+        LayoutSection::new("&&systemdata/Start.dol", "DOL Header", d.offset, DOL_HEADER_SIZE)
     }
 }
 
 impl<'a> From<&'a Segment> for LayoutSection<'a> {
     fn from(s: &'a Segment) -> LayoutSection<'a> {
-        LayoutSection::new(s.to_str(), s.start, s.size as usize)
+        LayoutSection::new(s.to_string(), "DOL Segment", s.start, s.size as usize)
     }
 }
 
