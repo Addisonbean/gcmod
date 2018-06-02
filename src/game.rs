@@ -7,7 +7,7 @@ use std::cmp;
 use std::cmp::Ordering::*;
 
 use header::{GAME_HEADER_SIZE, Header};
-use app_loader::{APPLOADER_OFFSET, Apploader};
+use apploader::{APPLOADER_OFFSET, Apploader};
 use dol::DOLHeader;
 use fst::FST;
 use fst::entry::{DirectoryEntry, Entry};

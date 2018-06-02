@@ -7,10 +7,9 @@ TODO
 * Warn if the iso to be rebuilt already exists
 * Create an error if there isn't enough free space (and offer a suggestion like decreasing the alignment)
 * Remove the offset param in Game::new
-* Make Segment.size a usize
 * Add cool stuff for getting info on the rom like a tree command to view the file system as a tree, an ls or list-files subcommand, cool stuff like that
 
-* Cow could probably be used a few places to reduce allocations, but the potential benefits probably aren't worth the trouble. Look into this though
+* Cow could probably be used a few more places to reduce allocations, but the potential benefits probably aren't worth the trouble. Look into this though
 * Add a way to check for free space (display this after rebuilding?)
 * Add a way to specify a certain alignment for files matching a regex?
 	* Also a way to specify a different default alignment
@@ -38,13 +37,13 @@ TODO
 * Add an option not to rebuild any of the files (should that be the default? probably?)
 * Add a way to only extract a single file
 * Accept hex numbers as inputs
+* Add tests
+* Make sure it works for Japanese ROMs and unicode
 
 Refactoring
+* Improve DisasmIter
 * Only make stuff public if it needs to be
 * Be consistent (argument order, naming, output, and other stuff)
-* Rename stuff (apploader is still app\_loader is a few places, include the app\_loader filename itself, filename is sometimes file\_name)
-	* Be consistent with offset vs. start vs. start\_... and things like addr vs offset, size vs. len
-	* Rust uses file\_name, so I should probably replace usages of filename with that
 
 This is golden:
 http://www.gc-forever.com/forums/viewtopic.php?p=1487&sid=a5f89e4c4ee820c1305b27babf50eccd#p1487

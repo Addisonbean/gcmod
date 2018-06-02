@@ -12,7 +12,7 @@ pub use game::ROM_SIZE;
 pub mod header;
 pub mod fst;
 pub mod dol;
-pub mod app_loader;
+pub mod apploader;
 pub mod disassembler;
 pub mod layout_section;
 

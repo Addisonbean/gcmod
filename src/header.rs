@@ -8,7 +8,7 @@ use std::path::Path;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 use fst::FST;
-use app_loader::APPLOADER_OFFSET;
+use apploader::APPLOADER_OFFSET;
 use layout_section::LayoutSection;
 use ::align;
 

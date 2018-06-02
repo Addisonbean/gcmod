@@ -26,9 +26,9 @@ impl<'a> Disassembler<'a> {
         file_path: P,
         segment: &Segment
     ) -> io::Result<DisasmIter> {
-        let offset = segment.loading_address - segment.start;
-        let start = segment.start + offset;
-        let end = start + segment.size;
+        let offset = segment.loading_address - segment.dol_offset;
+        let start = segment.dol_offset + offset;
+        let end = start + segment.size as u64;
         let output = Command::new(self.objdump_path)
             .args(&["-mpowerpc", "-D", "-b", "binary", "-EB", "-M", "750cl",
                 "--start-address", &start.to_string(),

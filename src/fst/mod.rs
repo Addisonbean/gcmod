@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use byteorder::{BigEndian, ReadBytesExt};
 
 use self::entry::{DirectoryEntry, Entry, EntryInfo, FileEntry, ENTRY_SIZE};
-use app_loader::APPLOADER_OFFSET;
+use apploader::APPLOADER_OFFSET;
 use layout_section::LayoutSection;
 use ::{align, extract_section};
 

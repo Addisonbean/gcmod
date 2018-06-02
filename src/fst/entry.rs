@@ -33,7 +33,7 @@ pub struct EntryInfo {
 pub struct FileEntry {
     pub info: EntryInfo,
     pub file_offset: u64,
-    pub length: usize,
+    pub size: usize,
 }
 
 /*

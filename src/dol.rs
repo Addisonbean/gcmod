@@ -11,7 +11,7 @@ const TEXT_SEG_COUNT: usize = 7;
 const DATA_SEG_COUNT: usize = 11;
 
 pub const DOL_OFFSET_OFFSET: u64 = 0x0420;
-pub const DOL_HEADER_SIZE: usize = 0x100;
+pub const DOL_HEADER_LEN: usize = 0x100;
 
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub enum SegmentType {
@@ -30,9 +30,8 @@ impl SegmentType {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Segment {
-    // the start of the segment is relative to the beginning of the DOL section
-    pub start: u64,
-    pub size: u64,
+    pub dol_offset: u64,
+    pub size: usize,
     pub loading_address: u64,
     pub seg_type: SegmentType,
     pub seg_num: u64,
@@ -41,7 +40,7 @@ pub struct Segment {
 impl Segment {
     pub fn text() -> Segment {
         Segment {
-            start: 0,
+            dol_offset: 0,
             size: 0,
             loading_address: 0,
             seg_type: SegmentType::Text,
@@ -51,7 +50,7 @@ impl Segment {
 
     pub fn data() -> Segment {
         Segment {
-            start: 0,
+            dol_offset: 0,
             size: 0,
             loading_address: 0,
             seg_type: SegmentType::Data,
@@ -88,7 +87,7 @@ impl DOLHeader {
 
             for ref mut seg_type in segs.iter_mut() {
                 for i in 0..seg_type.len() {
-                    seg_type[i].start = offset + file.read_u32::<BigEndian>()? as u64;
+                    seg_type[i].dol_offset = offset + file.read_u32::<BigEndian>()? as u64;
                     seg_type[i].seg_num = i as u64;
                 }
             }
@@ -102,7 +101,7 @@ impl DOLHeader {
 
             for ref mut seg_type in segs.iter_mut() {
                 for i in 0..seg_type.len() {
-                    seg_type[i].size = file.read_u32::<BigEndian>()? as u64;
+                    seg_type[i].size = file.read_u32::<BigEndian>()? as usize;
                 }
             }
         }
@@ -111,7 +110,7 @@ impl DOLHeader {
         let entry_point = file.read_u32::<BigEndian>()? as u64;
 
         let dol_size = text_segments.iter().chain(data_segments.iter())
-            .map(|s| s.start + s.size).max().unwrap() as usize;
+            .map(|s| s.dol_offset as usize + s.size).max().unwrap();
 
         Ok(DOLHeader {
             offset,
@@ -164,13 +163,23 @@ impl DOLHeader {
 
 impl<'a> From<&'a DOLHeader> for LayoutSection<'a> {
     fn from(d: &'a DOLHeader) -> LayoutSection<'a> {
-        LayoutSection::new("&&systemdata/Start.dol", "DOL Header", d.offset, DOL_HEADER_SIZE)
+        LayoutSection::new(
+            "&&systemdata/Start.dol",
+            "DOL Header",
+            d.offset,
+            DOL_HEADER_LEN,
+        )
     }
 }
 
 impl<'a> From<&'a Segment> for LayoutSection<'a> {
     fn from(s: &'a Segment) -> LayoutSection<'a> {
-        LayoutSection::new(s.to_string(), "DOL Segment", s.start, s.size as usize)
+        LayoutSection::new(
+            s.to_string(),
+            "DOL Segment",
+            s.dol_offset,
+            s.size,
+        )
     }
 }
 
