@@ -73,7 +73,7 @@ impl FST {
             match &e {
                 Entry::File(f) => {
                     file_count += 1;
-                    total_file_system_size += f.length;
+                    total_file_system_size += f.size;
                 },
                 Entry::Directory(d) => {
                     // parent_dirs.push((index, d.next_index - index - 1));
@@ -224,9 +224,9 @@ impl FST {
                 let entry = Entry::File(FileEntry {
                     info,
                     file_offset: rb_info.file_offset,
-                    length: e.metadata()?.len() as usize,
+                    size: e.metadata()?.len() as usize,
                 });
-                rb_info.file_offset += align(entry.as_file().unwrap().length as u64);
+                rb_info.file_offset += align(entry.as_file().unwrap().size as u64);
                 rb_info.file_count += 1;
                 rb_info.entries.push(entry);
             }

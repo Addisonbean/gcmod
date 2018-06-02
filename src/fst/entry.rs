@@ -79,7 +79,7 @@ impl Entry {
             0 => Entry::File(FileEntry {
                 info,
                 file_offset: f2 as u64,
-                length: f3 as usize,
+                size: f3 as usize,
             }),
             1 => Entry::Directory(DirectoryEntry {
                 info,
@@ -97,7 +97,7 @@ impl Entry {
         write_int_to_buffer(name_offset, &mut buf[1..4]);
 
         let (f2, f3) = match self {
-            &Entry::File(ref e) => (e.file_offset, e.length as u64),
+            &Entry::File(ref e) => (e.file_offset, e.size as u64),
             &Entry::Directory(ref e) => (e.parent_index as u64, e.next_index as u64),
         };
 
@@ -236,12 +236,11 @@ impl FileEntry {
         where R: BufRead + Seek, W: Write
     {
         reader.seek(SeekFrom::Start(self.file_offset))?;
-        extract_section(reader, self.length, file)
+        extract_section(reader, self.size, file)
     }
 
     pub fn layout_section<'a>(&self, fst: &FST) -> LayoutSection<'a> {
-        // LayoutSection::new(&f.info.name[..], "File", f.file_offset, f.length)
-        LayoutSection::new(fst.get_full_path(&self.info), "File", self.file_offset, self.length)
+        LayoutSection::new(fst.get_full_path(&self.info), "File", self.file_offset, self.size)
     }
 }
 
