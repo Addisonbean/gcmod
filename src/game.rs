@@ -1,6 +1,6 @@
 use std::fs::{create_dir, File};
 use std::path::{Path, PathBuf};
-use std::io::{self, BufReader, Seek, SeekFrom, Write};
+use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 use std::cmp;
@@ -22,28 +22,21 @@ pub struct Game {
     pub app_loader: Apploader,
     pub fst: FST,
     pub dol: DOLHeader,
-    pub iso: BufReader<File>,
-    // Once set, this field needs to stay sorted.
-    // Is there a good way to ensure that?
 }
 
 impl Game {
 
-    pub fn open<P: AsRef<Path>>(filename: P, offset: u64) -> io::Result<Game> {
-        let f = File::open(&filename)?;
-        let mut iso = BufReader::new(f);
-
-        let header = Header::new(&mut iso, offset)?;
-        let app_loader = Apploader::new(&mut iso, offset + APPLOADER_OFFSET)?;
-        let dol = DOLHeader::new(&mut iso, offset + header.dol_offset)?;
-        let fst = FST::new(&mut iso, offset + header.fst_offset)?;
+    pub fn open<R: BufRead + Seek>(iso: &mut R, offset: u64) -> io::Result<Game> {
+        let header = Header::new(iso, offset)?;
+        let app_loader = Apploader::new(iso, offset + APPLOADER_OFFSET)?;
+        let dol = DOLHeader::new(iso, offset + header.dol_offset)?;
+        let fst = FST::new(iso, offset + header.fst_offset)?;
 
         Ok(Game {
             header,
             app_loader,
             fst,
             dol,
-            iso,
         })
     }
 
@@ -78,7 +71,11 @@ impl Game {
         ROMLayout(layout)
     }
 
-    pub fn extract<P: AsRef<Path>>(&mut self, path: P) -> io::Result<()> {
+    pub fn extract<R: BufRead + Seek, P: AsRef<Path>>(
+        &mut self,
+        iso: &mut R,
+        path: P
+    ) -> io::Result<()> {
         // Not using `create_dir_all` here so it fails if `path` already exists.
         create_dir(path.as_ref())?;
         let sys_data_path = path.as_ref().join("&&systemdata");
@@ -86,57 +83,71 @@ impl Game {
         create_dir(sys_data_path)?;
 
         let mut header_file = File::create(sys_data_path.join("ISO.hdr"))?;
-        self.extract_game_header(&mut header_file)?;
+        self.extract_game_header(iso, &mut header_file)?;
 
         let mut fst_file = File::create(sys_data_path.join("Game.toc"))?;
-        self.extract_fst(&mut fst_file)?;
+        self.extract_fst(iso, &mut fst_file)?;
 
         let mut apploader_file =
             File::create(sys_data_path.join("Apploader.ldr"))?;
-        self.extract_app_loader(&mut apploader_file)?;
+        self.extract_app_loader(iso, &mut apploader_file)?;
 
         let mut dol_file = File::create(sys_data_path.join("Start.dol"))?;
-        self.extract_dol(&mut dol_file)?;
+        self.extract_dol(iso, &mut dol_file)?;
 
-        self.extract_files(path.as_ref())?;
+        self.extract_files(iso, path.as_ref())?;
         Ok(())
     }
 
-    pub fn extract_files<P>(&mut self, path: P) -> io::Result<usize>
-        where P: AsRef<Path>
-    {
+    pub fn extract_files<P: AsRef<Path>, R: BufRead + Seek>(
+        &mut self,
+        iso: &mut R,
+        path: P,
+    ) -> io::Result<usize> {
         let count = self.fst.file_count;
-        let res = self.fst.extract_filesystem(path, &mut self.iso, &|c|
+        let res = self.fst.extract_filesystem(path, iso, &|c|
             print!("\r{}/{} files written.", c, count)
         );
         println!();
         res
     }
 
-    pub fn extract_game_header<W>(&mut self, file: &mut W) -> io::Result<()>
-        where W: Write
-    {
+    pub fn extract_game_header<R: Read + Seek, W: Write>(
+        &mut self,
+        iso: &mut R,
+        file: &mut W,
+    ) -> io::Result<()> {
         println!("Writing game header...");
-        self.iso.seek(SeekFrom::Start(0))?;
-        extract_section(&mut self.iso, GAME_HEADER_SIZE, file)
+        iso.seek(SeekFrom::Start(0))?;
+        extract_section(iso, GAME_HEADER_SIZE, file)
     }
 
     // DOL is the format of the main executable on a GameCube disk
-    pub fn extract_dol<W: Write>(&mut self, file: &mut W) -> io::Result<()> {
+    pub fn extract_dol<R: Read + Seek, W: Write>(
+        &mut self,
+        iso: &mut R,
+        file: &mut W,
+    ) -> io::Result<()> {
         println!("Writing DOL header...");
-        DOLHeader::extract(&mut self.iso, self.header.dol_offset, file)
+        DOLHeader::extract(iso, self.header.dol_offset, file)
     }
 
-    pub fn extract_app_loader<W>(&mut self, file: &mut W) -> io::Result<()>
-        where W: Write
-    {
+    pub fn extract_app_loader<R: Read + Seek, W: Write>(
+        &mut self,
+        iso: &mut R,
+        file: &mut W,
+    ) -> io::Result<()> {
         println!("Writing app loader...");
-        Apploader::extract(&mut self.iso, file)
+        Apploader::extract(iso, file)
     }
 
-    pub fn extract_fst<W: Write>(&mut self, file: &mut W) -> io::Result<()> {
+    pub fn extract_fst<R: Read + Seek, W: Write>(
+        &mut self,
+        iso: &mut R,
+        file: &mut W,
+    ) -> io::Result<()> {
         println!("Writing file system table...");
-        FST::extract(&mut self.iso, file, self.header.fst_offset)
+        FST::extract(iso, file, self.header.fst_offset)
     }
 
     pub fn print_info(&self) {

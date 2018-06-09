@@ -3,7 +3,7 @@ extern crate clap;
 extern crate tempfile;
 
 use std::path::{Path, PathBuf};
-use std::io::{BufReader, Seek, SeekFrom};
+use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::fs::File;
 
 use clap::{App, Arg, SubCommand, AppSettings};
@@ -89,8 +89,8 @@ fn extract_iso<P: AsRef<Path>>(input: P, output: P) {
     if output.exists() {
         eprintln!("Error: {} already exists.", output.display());
     } else {
-        try_to_open_game(input.as_ref(), 0).map(|mut game|
-            if let Err(_) = game.extract(output) {
+        try_to_open_game(input.as_ref(), 0).map(|(mut game, mut iso)|
+            if let Err(_) = game.extract(&mut iso, output) {
                 eprintln!("Failed to write files.");
             }
         );
@@ -98,14 +98,14 @@ fn extract_iso<P: AsRef<Path>>(input: P, output: P) {
 }
 
 fn print_iso_info<P: AsRef<Path>>(input: P, offset: u64) {
-    try_to_open_game(input, offset).as_ref().map(Game::print_info);
+    try_to_open_game(input, offset).map(|(game, _)| game.print_info());
 }
 
 // is this a bit much for main.rs? Move it to disassembler.rs?
 fn disassemble_dol<P: AsRef<Path>>(input: P, objdump_path: Option<P>) {
-    try_to_open_game(input.as_ref(), 0).map(|mut game| {
+    try_to_open_game(input.as_ref(), 0).map(|(mut game, mut iso)| {
         let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
-        if let Err(_) = game.extract_dol(tmp_file.as_mut()) {
+        if let Err(_) = game.extract_dol(&mut iso, tmp_file.as_mut()) {
             eprintln!("Could not extract dol.");
         }
         tmp_file.seek(SeekFrom::Start(0)).unwrap();
@@ -183,15 +183,15 @@ fn get_info<P: AsRef<Path>>(path: P, section: Option<&str>, offset: Option<&str>
 }
 
 fn print_header_info<P: AsRef<Path>>(header_path: P, offset: u64) {
-    let f = match File::open(header_path.as_ref()) {
-        Ok(f) => f,
+    let mut f = match File::open(header_path.as_ref()) {
+        Ok(f) => BufReader::new(f),
         Err(_) => {
             println!("Couldn't open header");
             return;
         },
     };
 
-    match Header::new(&mut BufReader::new(f), offset) {
+    match Header::new(&mut f, offset) {
         Ok(h) => {
             h.print_info();
             return;
@@ -199,7 +199,7 @@ fn print_header_info<P: AsRef<Path>>(header_path: P, offset: u64) {
         _ => (),
     }
 
-    match Game::open(header_path.as_ref(), 0) {
+    match Game::open(&mut f, 0) {
         Ok(g) => {
             g.header.print_info();
             return;
@@ -218,7 +218,7 @@ fn find_offset<P: AsRef<Path>>(header_path: P, offset: &str) {
             return;
         },
     };
-    try_to_open_game(header_path.as_ref(), 0).map(|game| {
+    try_to_open_game(header_path.as_ref(), 0).map(|(game, _)| {
         // TODO: if None, tell if there's no data beyond this point
         // Also provide a message saying it's just blank space if it's None
         match game.rom_layout().find_offset(offset) {
@@ -228,13 +228,19 @@ fn find_offset<P: AsRef<Path>>(header_path: P, offset: &str) {
     });
 }
 
-fn try_to_open_game<P: AsRef<Path>>(path: P, offset: u64) -> Option<Game> {
+fn try_to_open_game<P: AsRef<Path>>(
+    // path: impl AsRef<Path>,
+    path: P,
+    offset: u64,
+) -> Option<(Game, BufReader<impl Read + Seek>)> {
     let path = path.as_ref();
     if !path.exists() {
         eprintln!("Error: the iso {} doesn't exist.", path.display());
     } else {
-        match Game::open(path, offset) {
-            Ok(game) => return Some(game),
+        let iso = File::open(path).expect("Couldn't open file");
+        let mut iso = BufReader::new(iso);
+        match Game::open(&mut iso, offset) {
+            Ok(game) => return Some((game, iso)),
             Err(_) => eprintln!("Invalid iso: {}.", path.display()),
         }
     }
