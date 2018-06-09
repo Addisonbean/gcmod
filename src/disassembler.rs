@@ -21,13 +21,14 @@ impl<'a> Disassembler<'a> {
         })
     }
 
+    // TODO: make a version that accepts just the dol, not the whole iso
     pub fn disasm<P: AsRef<OsStr>>(
         &self,
         file_path: P,
         segment: &Segment
     ) -> io::Result<DisasmIter> {
-        let offset = segment.loading_address - segment.dol_offset;
-        let start = segment.dol_offset + offset;
+        let offset = segment.loading_address - segment.offset;
+        let start = segment.offset + offset;
         let end = start + segment.size as u64;
         let output = Command::new(self.objdump_path)
             .args(&["-mpowerpc", "-D", "-b", "binary", "-EB", "-M", "750cl",

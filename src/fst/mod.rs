@@ -1,7 +1,7 @@
 pub mod entry;
 
 use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::fs::{File, read_dir};
 use std::collections::BTreeMap;
 
@@ -10,7 +10,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 use self::entry::{DirectoryEntry, Entry, EntryInfo, FileEntry, ENTRY_SIZE};
 use apploader::APPLOADER_OFFSET;
 use layout_section::LayoutSection;
-use ::{align, extract_section};
+use ::{align, Extract, extract_section, ReadSeek};
 
 pub const FST_OFFSET_OFFSET: u64 = 0x0424; 
 pub const FST_SIZE_OFFSET: u64 = 0x0428;
@@ -21,6 +21,7 @@ struct RebuildInfo {
     filename_offset: u64,
     file_count: usize,
     parent_index: Option<usize>,
+    current_path: PathBuf,
 }
 
 #[derive(Debug)]
@@ -93,13 +94,20 @@ impl FST {
 
         let size = (iso.seek(SeekFrom::Current(0))? - offset) as usize;
 
-        Ok(FST {
+        let mut fst = FST {
             offset,
             file_count,
             total_file_system_size,
             entries,
             size,
-        })
+        };
+
+        for i in 0..fst.entries.len() {
+            let path = fst.get_full_path(fst.entries[i].info());
+            fst.entries[i].info_mut().full_path = path;
+        }
+
+        Ok(fst)
     }
 
     pub fn extract_filesystem<P, R, F>(
@@ -143,6 +151,7 @@ impl FST {
                 name: "/".to_owned(),
                 filename_offset: 0,
                 directory_index: None,
+                full_path: "/".into(),
             },
             parent_index: 0,
             // this value will need to be updated later on
@@ -156,6 +165,7 @@ impl FST {
             filename_offset: 0,
             file_count: 0,
             parent_index: None,
+            current_path: "/".into(),
         };
 
         FST::rebuild_dir_info(root_path.as_ref(), &mut rb_info)?;
@@ -191,15 +201,20 @@ impl FST {
         for e in read_dir(path.as_ref())? {
             let e = e?;
 
+            // TODO: don't keep calling e.file_name(), store it somewhere
+
             if e.file_name().to_str().map(|s| s.starts_with(".")).unwrap_or(false) ||
                e.file_name().to_str() == Some("&&systemdata") { continue }
 
+            let mut full_path = rb_info.current_path.clone();
+            full_path.push(e.file_name());
             let index = rb_info.entries.len() as usize;
             let info = EntryInfo {
                 index,
                 name: e.file_name().to_string_lossy().into_owned(),
                 filename_offset: rb_info.filename_offset,
                 directory_index: rb_info.parent_index,
+                full_path,
             };
             // plus 1 for the null byte
             rb_info.filename_offset += info.name.chars().count() as u64 + 1;
@@ -214,12 +229,16 @@ impl FST {
                 });
                 let index = rb_info.entries.len();
                 rb_info.entries.push(entry);
-                rb_info.parent_index = Some(index);
 
+                rb_info.parent_index = Some(index);
+                rb_info.current_path.push(e.file_name());
                 let count_before = rb_info.entries.len();
+
                 FST::rebuild_dir_info(e.path(), rb_info)?;
-                rb_info.entries[index].as_dir_mut().unwrap().next_index += rb_info.entries.len() - count_before;
+
                 rb_info.parent_index = old_index;
+                rb_info.current_path.pop();
+                rb_info.entries[index].as_dir_mut().unwrap().next_index += rb_info.entries.len() - count_before;
             } else {
                 let entry = Entry::File(FileEntry {
                     info,
@@ -248,13 +267,15 @@ impl FST {
         Ok(())
     }
 
-    pub fn string_table_layout_section<'a>(&self) -> LayoutSection<'a> {
+    pub fn string_table_layout_section<'a, 'b>(&'b self) -> LayoutSection<'a, 'b> {
         let fst_size = self.entries.len() * ENTRY_SIZE;
         LayoutSection::new(
             "&&systemdata/Game.toc",
             "String Table",
             self.offset + fst_size as u64,
             self.size - fst_size,
+            // TODO: this needs to be changed
+            self,
         )
     }
 
@@ -262,7 +283,7 @@ impl FST {
         entry.directory_index.map(|i| &self.entries[i])
     }
 
-    pub fn get_full_path(&self, entry: &EntryInfo) -> String {
+    fn get_full_path(&self, entry: &EntryInfo) -> PathBuf {
         let mut parent = entry;
         let mut names = vec![&entry.name];
         loop {
@@ -273,21 +294,31 @@ impl FST {
 
             names.push(&parent.name);
         }
-        names.iter().rev().fold(String::new(), |mut path, name| {
-            match path.chars().last() {
-                Some(c) if c != '/' => path.push('/'),
-                _ => (),
-            }
-            path.push_str(name);
-            path
-        })
+        let mut path = PathBuf::new();
+        for name in names.iter().rev() {
+            path.push(name);
+        }
+        path
     }
 }
 
-impl<'a> From<&'a FST> for LayoutSection<'a> {
-    fn from(fst: &'a FST) -> LayoutSection<'a> {
+impl<'a, 'b> From<&'b FST> for LayoutSection<'a, 'b> {
+    fn from(fst: &'b FST) -> LayoutSection<'a, 'b> {
         let size = fst.entries.len() * ENTRY_SIZE;
-        LayoutSection::new("&&systemdata/Game.toc", "File System Table", fst.offset, size)
+        LayoutSection::new(
+            "&&systemdata/Game.toc",
+            "File System Table",
+            fst.offset,
+            size,
+            fst
+        )
+    }
+}
+
+impl Extract for FST {
+    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
+        iso.seek(SeekFrom::Start(self.offset))?;
+        extract_section(iso, self.size, output)
     }
 }
 

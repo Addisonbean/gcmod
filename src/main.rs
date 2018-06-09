@@ -8,7 +8,7 @@ use std::fs::File;
 
 use clap::{App, Arg, SubCommand, AppSettings};
 
-use gamecube_iso_assistant::{Game, ROM_SIZE};
+use gamecube_iso_assistant::{Game, ROM_SIZE, Extract};
 use gamecube_iso_assistant::header::Header;
 use gamecube_iso_assistant::dol::DOLHeader;
 use gamecube_iso_assistant::disassembler::Disassembler;
@@ -27,7 +27,9 @@ fn main() {
             .about("Display information about an offset in the ROM.")
             .arg(Arg::with_name("iso_path").required(true))
             .arg(Arg::with_name("offset").short("o").long("offset")
-                 .takes_value(true).required(true)))
+                 .takes_value(true).required(true))
+            .arg(Arg::with_name("output").long("output")
+                 .takes_value(true).required(false)))
 
         .subcommand(SubCommand::with_name("info")
             .about("Display information about the ROM.")
@@ -68,6 +70,7 @@ fn main() {
             find_offset(
                 cmd.value_of("iso_path").unwrap(),
                 cmd.value_of("offset").unwrap(),
+                cmd.value_of("output"),
             ),
         ("disasm", Some(cmd)) =>
             disassemble_dol(
@@ -210,7 +213,7 @@ fn print_header_info<P: AsRef<Path>>(header_path: P, offset: u64) {
     println!("Invalid header or iso");
 }
 
-fn find_offset<P: AsRef<Path>>(header_path: P, offset: &str) {
+fn find_offset<P: AsRef<Path>>(header_path: P, offset: &str, output: Option<P>) {
     let offset = match offset.parse::<u64>() {
         Ok(o) if (o as usize) < ROM_SIZE => o,
         _ => {
@@ -218,12 +221,30 @@ fn find_offset<P: AsRef<Path>>(header_path: P, offset: &str) {
             return;
         },
     };
-    try_to_open_game(header_path.as_ref(), 0).map(|(game, _)| {
+    try_to_open_game(header_path.as_ref(), 0).map(|(game, mut iso)| {
         // TODO: if None, tell if there's no data beyond this point
         // Also provide a message saying it's just blank space if it's None
-        match game.rom_layout().find_offset(offset) {
-            Some(s) => println!("{}", s),
-            None => println!("There isn't any data at this offset."),
+        let layout = game.rom_layout();
+        let section = match layout.find_offset(offset) {
+            Some(s) => s,
+            None => {
+                println!("There isn't any data at this offset.");
+                return;
+            }
+        };
+
+        println!("{}", section);
+
+        if let Some(filename) = output {
+            let mut file = match File::create(filename.as_ref()) {
+                Ok(f) => f,
+                Err(_) => {
+                    println!("Error: file already exists");
+                    return;
+                }
+            };
+
+            section.extract(&mut iso, &mut file);
         }
     });
 }

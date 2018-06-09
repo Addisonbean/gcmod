@@ -5,7 +5,7 @@ use std::iter::Iterator;
 use byteorder::{ReadBytesExt, BigEndian};
 
 use layout_section::LayoutSection;
-use ::extract_section;
+use ::{Extract, extract_section, ReadSeek};
 
 const TEXT_SEG_COUNT: usize = 7;
 const DATA_SEG_COUNT: usize = 11;
@@ -30,7 +30,12 @@ impl SegmentType {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Segment {
-    pub dol_offset: u64,
+    // NOTE: `offset` is not the offset stored on the ROM.
+    // The ROM provides the offset relative to the start of the DOL header,
+    // whereas this is relative to the beginning of the ROM. It is essentially
+    // the offset relative to the DOL which is given in the ROM,
+    // plus the offset of the DOL itself.
+    pub offset: u64,
     pub size: usize,
     pub loading_address: u64,
     pub seg_type: SegmentType,
@@ -40,7 +45,7 @@ pub struct Segment {
 impl Segment {
     pub fn text() -> Segment {
         Segment {
-            dol_offset: 0,
+            offset: 0,
             size: 0,
             loading_address: 0,
             seg_type: SegmentType::Text,
@@ -50,7 +55,7 @@ impl Segment {
 
     pub fn data() -> Segment {
         Segment {
-            dol_offset: 0,
+            offset: 0,
             size: 0,
             loading_address: 0,
             seg_type: SegmentType::Data,
@@ -87,7 +92,7 @@ impl DOLHeader {
 
             for ref mut seg_type in segs.iter_mut() {
                 for i in 0..seg_type.len() {
-                    seg_type[i].dol_offset = offset + file.read_u32::<BigEndian>()? as u64;
+                    seg_type[i].offset = offset + file.read_u32::<BigEndian>()? as u64;
                     seg_type[i].seg_num = i as u64;
                 }
             }
@@ -110,7 +115,7 @@ impl DOLHeader {
         let entry_point = file.read_u32::<BigEndian>()? as u64;
 
         let dol_size = text_segments.iter().chain(data_segments.iter())
-            .map(|s| s.dol_offset as usize + s.size).max().unwrap();
+            .map(|s| (s.offset - offset) as usize + s.size).max().unwrap();
 
         Ok(DOLHeader {
             offset,
@@ -161,25 +166,45 @@ impl DOLHeader {
     }
 }
 
-impl<'a> From<&'a DOLHeader> for LayoutSection<'a> {
-    fn from(d: &'a DOLHeader) -> LayoutSection<'a> {
+impl<'a, 'b> From<&'b DOLHeader> for LayoutSection<'a, 'b> {
+    fn from(d: &'b DOLHeader) -> LayoutSection<'a, 'b> {
         LayoutSection::new(
             "&&systemdata/Start.dol",
             "DOL Header",
             d.offset,
             DOL_HEADER_LEN,
+            d,
         )
     }
 }
 
-impl<'a> From<&'a Segment> for LayoutSection<'a> {
-    fn from(s: &'a Segment) -> LayoutSection<'a> {
+impl<'a, 'b> From<&'b Segment> for LayoutSection<'a, 'b> {
+    fn from(s: &'b Segment) -> LayoutSection<'a, 'b> {
         LayoutSection::new(
             s.to_string(),
             "DOL Segment",
-            s.dol_offset,
+            s.offset,
             s.size,
+            s,
         )
+    }
+}
+
+impl Extract for DOLHeader {
+    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
+        iso.seek(SeekFrom::Start(self.offset))?;
+        extract_section(iso, DOL_HEADER_LEN, output)
+    }
+}
+
+impl Extract for Segment {
+    fn extract(
+        &self,
+        iso: &mut ReadSeek,
+        output: &mut Write,
+    ) -> io::Result<()> {
+        iso.seek(SeekFrom::Start(self.offset))?;
+        extract_section(iso, self.size, output)
     }
 }
 

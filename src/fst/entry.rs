@@ -1,12 +1,11 @@
-use std::io::{self, BufRead, Seek, SeekFrom, Write};
+use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 use std::fs::{File, create_dir_all};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use fst::FST;
 use layout_section::LayoutSection;
-use ::extract_section;
+use ::{Extract, extract_section, ReadSeek};
 
 pub const ENTRY_SIZE: usize = 12;
 
@@ -23,10 +22,12 @@ pub struct EntryInfo {
     pub name: String,
     pub filename_offset: u64,
 
-    // This field isn't actually stored in the ROM. It's the index of the
-    // directory that the entry is in. For directories, this'll be the same
-    // as the parent_index field.
+    // The fields below are not actually stored on the ROM:
+
+    // This is the index of the directory that the entry is in.
+    // For directories, this'll be the same as the parent_index field.
     pub directory_index: Option<usize>,
+    pub full_path: PathBuf,
 }
 
 #[derive(Debug)]
@@ -67,12 +68,14 @@ impl Entry {
         let f2 = (&entry[4..8]).read_u32::<BigEndian>().unwrap();
         let f3 = (&entry[8..12]).read_u32::<BigEndian>().unwrap();
         let name = String::new();
+        let full_path = PathBuf::new();
 
         let info = EntryInfo {
             index,
             name,
             filename_offset,
             directory_index,
+            full_path,
         };
 
         Some(match entry[0] {
@@ -238,10 +241,6 @@ impl FileEntry {
         reader.seek(SeekFrom::Start(self.file_offset))?;
         extract_section(reader, self.size, file)
     }
-
-    pub fn layout_section<'a>(&self, fst: &FST) -> LayoutSection<'a> {
-        LayoutSection::new(fst.get_full_path(&self.info), "File", self.file_offset, self.size)
-    }
 }
 
 impl DirectoryEntry {
@@ -284,6 +283,19 @@ impl<'a> Iterator for DirectoryIter<'a> {
         } else {
             None
         }
+    }
+}
+
+impl<'b> From<&'b FileEntry> for LayoutSection<'b, 'b> {
+    fn from(f: &'b FileEntry) -> LayoutSection<'b, 'b> {
+        LayoutSection::new(f.info.full_path.to_string_lossy(), "File", f.file_offset, f.size, f)
+    }
+}
+
+impl Extract for FileEntry {
+    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
+        iso.seek(SeekFrom::Start(self.file_offset))?;
+        extract_section(iso, self.size, output)
     }
 }
 

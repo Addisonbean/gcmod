@@ -2,8 +2,9 @@ extern crate byteorder;
 #[macro_use]
 extern crate lazy_static;
 
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Seek, Write};
 use std::cmp::min;
+use std::fmt::Debug;
 
 mod game;
 pub use game::Game;
@@ -22,10 +23,16 @@ pub const WRITE_CHUNK_SIZE: usize = 1048576;
 // 32KiB
 pub const DEFAULT_ALIGNMENT: u64 = 32 * 1024; 
 
-pub fn extract_section<R: Read, W: Write>(
-    iso: &mut R,
+pub trait ReadSeek: Read + Seek {}
+impl<T> ReadSeek for T where T: Read + Seek {}
+
+pub fn extract_section(
+    // This doesn't really need ReadSeek, only Read, but there isn't
+    // a good way to upcast traits to other traits in Rust at the moment
+    // so this'll work for now I guess...
+    iso: &mut ReadSeek,
     bytes: usize,
-    file: &mut W
+    file: &mut Write,
 ) -> io::Result<()> {
     let mut buf: [u8; WRITE_CHUNK_SIZE] = [0; WRITE_CHUNK_SIZE];
     let mut bytes_left = bytes;
@@ -41,6 +48,10 @@ pub fn extract_section<R: Read, W: Write>(
     }
 
     Ok(())
+}
+
+pub trait Extract: Debug {
+    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()>;
 }
 
 pub fn align_to(n: u64, m: u64) -> u64 {

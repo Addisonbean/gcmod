@@ -10,7 +10,7 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use fst::FST;
 use apploader::APPLOADER_OFFSET;
 use layout_section::LayoutSection;
-use ::align;
+use ::{align, Extract, extract_section, ReadSeek};
 
 pub const GAME_HEADER_SIZE: usize = 0x2440;
 
@@ -280,9 +280,16 @@ impl Header {
     }
 }
 
-impl<'a> From<&'a Header> for LayoutSection<'a> {
-    fn from(_: &'a Header) -> LayoutSection<'a> {
-        LayoutSection::new("ISO.hdr", "Header", 0, GAME_HEADER_SIZE)
+impl<'a, 'b> From<&'b Header> for LayoutSection<'a, 'b> {
+    fn from(h: &'b Header) -> LayoutSection<'a, 'b> {
+        LayoutSection::new("ISO.hdr", "Header", 0, GAME_HEADER_SIZE, h)
+    }
+}
+
+impl Extract for Header {
+    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
+        iso.seek(SeekFrom::Start(0))?;
+        extract_section(iso, GAME_HEADER_SIZE, output)
     }
 }
 

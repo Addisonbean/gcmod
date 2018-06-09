@@ -62,8 +62,8 @@ impl Game {
         layout.push((&self.fst).into());
         layout.push(self.fst.string_table_layout_section());
 
-        for e in &self.fst.entries {
-            e.as_file().map(|f| layout.push(f.layout_section(&self.fst)));
+        for f in self.fst.entries.iter().filter_map(|e| e.as_file()) {
+            layout.push(f.into());
         }
 
         layout.sort_unstable();
@@ -296,9 +296,9 @@ fn fill_files_btree<P: AsRef<Path>>(
     }
 }
 
-pub struct ROMLayout<'a>(Vec<LayoutSection<'a>>);
+pub struct ROMLayout<'a, 'b>(Vec<LayoutSection<'a, 'b>>);
 
-impl<'a> ROMLayout<'a> {
+impl<'a, 'b> ROMLayout<'a, 'b> {
     pub fn find_offset(&self, offset: u64) -> Option<&LayoutSection> {
         // I don't use `Iterator::find` here because I can't break early once
         // a section is passed that has a greater starting offset than `offset`

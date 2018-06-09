@@ -1,21 +1,20 @@
 TODO
 
-* Add traits like WriteToDisk, Extract, Rebuild, Info (or just use Display?), etc... (where would these be helpful? Anywhere?)
-	* This would at least make methods for extracting and such more consistent (the argument orders are inconsistent right now, just look at Game::extract\_dol vs. Game::extract\_fst)
-	* An ISOSection trait?
+* Add traits like Rebuild, Info (or just use Display?), etc... (where would these be helpful? Anywhere?)
 * Improve README.md, explain how to use it
 * Warn if the iso to be rebuilt already exists
 * Create an error if there isn't enough free space (and offer a suggestion like decreasing the alignment)
 * Remove the offset param in Game::new
 * Add cool stuff for getting info on the rom like a tree command to view the file system as a tree, an ls or list-files subcommand, cool stuff like that
+* Add more types for the info subcommand, like dol, fst, and other stuff
 
 * Cow could probably be used a few more places to reduce allocations, but the potential benefits probably aren't worth the trouble. Look into this though
+	* Wait a minute... Why don't I just add a name property or something to Segment?
 * Add a way to check for free space (display this after rebuilding?)
 * Add a way to specify a certain alignment for files matching a regex?
 	* Also a way to specify a different default alignment
 * Keep working on the documentation on Google Docs
 * Make Entry::new return a Result, not Option
-* Add an option to rebuild that doesn't rebuild the &&systemdata directory
 * Add more subcommands
 * Add a progress indicator for the rebuild command
 * Put it on codereview.stackexchange.com
@@ -34,7 +33,7 @@ TODO
 * Make consts for the default system data path and the files in there
 	* Maybe a property of Game that stores the filenames?
 * Add offsets for other commands (info has it now)
-* Add an option not to rebuild any of the files (should that be the default? probably?)
+* Add an option to rebuild that doesn't rebuild the &&systemdata directory (should that be the default? probably?)
 * Add a way to only extract a single file
 * Accept hex numbers as inputs
 * Add tests

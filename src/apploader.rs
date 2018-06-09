@@ -3,7 +3,7 @@ use std::io::{self, Read, Seek, SeekFrom, Write};
 use byteorder::{ReadBytesExt, BigEndian};
 
 use layout_section::LayoutSection;
-use ::{align_to, extract_section};
+use ::{align_to, Extract, extract_section, ReadSeek};
 
 pub const APPLOADER_OFFSET: u64 = 0x2440;
 const APPLOADER_DATE_SIZE: usize = 0x0A;
@@ -55,9 +55,16 @@ impl Apploader {
     }
 }
 
-impl<'a> From<&'a Apploader> for LayoutSection<'a> {
-    fn from(a: &'a Apploader) -> LayoutSection<'a> {
-        LayoutSection::new("&&systemdata/Apploader.ldr", "Apploader", APPLOADER_OFFSET, a.total_size())
+impl<'a, 'b> From<&'b Apploader> for LayoutSection<'a, 'b> {
+    fn from(a: &'b Apploader) -> LayoutSection<'a, 'b> {
+        LayoutSection::new("&&systemdata/Apploader.ldr", "Apploader", APPLOADER_OFFSET, a.total_size(), a)
+    }
+}
+
+impl Extract for Apploader {
+    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
+        iso.seek(SeekFrom::Start(APPLOADER_OFFSET))?;
+        extract_section(iso, self.total_size(), output)
     }
 }
 
