@@ -19,7 +19,7 @@ pub const ROM_SIZE: usize = 0x57058000;
 #[derive(Debug)]
 pub struct Game {
     pub header: Header,
-    pub app_loader: Apploader,
+    pub apploader: Apploader,
     pub fst: FST,
     pub dol: DOLHeader,
 }
@@ -28,13 +28,13 @@ impl Game {
 
     pub fn open<R: BufRead + Seek>(iso: &mut R, offset: u64) -> io::Result<Game> {
         let header = Header::new(iso, offset)?;
-        let app_loader = Apploader::new(iso, offset + APPLOADER_OFFSET)?;
+        let apploader = Apploader::new(iso, offset + APPLOADER_OFFSET)?;
         let dol = DOLHeader::new(iso, offset + header.dol_offset)?;
         let fst = FST::new(iso, offset + header.fst_offset)?;
 
         Ok(Game {
             header,
-            app_loader,
+            apploader,
             fst,
             dol,
         })
@@ -49,7 +49,7 @@ impl Game {
         let mut layout = Vec::with_capacity(size);
 
         layout.push((&self.header).into());
-        layout.push((&self.app_loader).into());
+        layout.push((&self.apploader).into());
 
         layout.push((&self.dol).into());
 
@@ -90,7 +90,7 @@ impl Game {
 
         let mut apploader_file =
             File::create(sys_data_path.join("Apploader.ldr"))?;
-        self.extract_app_loader(iso, &mut apploader_file)?;
+        self.extract_apploader(iso, &mut apploader_file)?;
 
         let mut dol_file = File::create(sys_data_path.join("Start.dol"))?;
         self.extract_dol(iso, &mut dol_file)?;
@@ -132,7 +132,7 @@ impl Game {
         DOLHeader::extract(iso, self.header.dol_offset, file)
     }
 
-    pub fn extract_app_loader<R: Read + Seek, W: Write>(
+    pub fn extract_apploader<R: Read + Seek, W: Write>(
         &mut self,
         iso: &mut R,
         file: &mut W,
@@ -157,7 +157,7 @@ impl Game {
         println!("FST size: {} bytes", self.fst.size);
         println!("Main DOL offset: {}", self.header.dol_offset);
         println!("Main DOL entry point: {}", self.dol.entry_point);
-        println!("Apploader size: {}", self.app_loader.total_size());
+        println!("Apploader size: {}", self.apploader.total_size());
 
         println!("\nROM Layout:");
         self.print_layout();
@@ -170,7 +170,7 @@ impl Game {
         regions.insert(0, (GAME_HEADER_SIZE, "ISO.hdr"));
         regions.insert(
             APPLOADER_OFFSET,
-            (self.app_loader.total_size(), "Apploader.ldr")
+            (self.apploader.total_size(), "Apploader.ldr")
         );
         regions.insert(self.header.dol_offset, (self.dol.dol_size, "Start.dol"));
         regions.insert(self.header.fst_offset, (self.fst.size, "Game.toc"));

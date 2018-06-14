@@ -1,6 +1,7 @@
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::cmp::max;
 use std::iter::Iterator;
+use std::fmt;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
@@ -205,6 +206,14 @@ impl Extract for Segment {
     ) -> io::Result<()> {
         iso.seek(SeekFrom::Start(self.offset))?;
         extract_section(iso, self.size, output)
+    }
+}
+
+impl fmt::Display for DOLHeader {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Offset: {}", self.offset)?;
+        writeln!(f, "Size: {} bytes", self.dol_size)?;
+        write!(f, "Entry point: {}", self.entry_point)
     }
 }
 

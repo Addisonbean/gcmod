@@ -80,8 +80,11 @@ impl<'a, 'b> Ord for LayoutSection<'a, 'b> {
 
 impl<'a, 'b> fmt::Display for LayoutSection<'a, 'b> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Name: {}\nType: {}\nStart: {}\nEnd: {}\nSize: {} bytes",
-               self.name, self.section_type, self.start, self.end, self.len())
+        writeln!(f, "Name: {}", self.name)?;
+        writeln!(f, "Type: {}", self.section_type)?;
+        writeln!(f, "Start: {}", self.start)?;
+        writeln!(f, "End: {}", self.end)?;
+        write!(f, "Size: {} bytes", self.len())
     }
 }
 

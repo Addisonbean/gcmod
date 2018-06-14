@@ -1,12 +1,14 @@
 TODO
 
 * Add traits like Rebuild, Info (or just use Display?), etc... (where would these be helpful? Anywhere?)
+* Get rid of all the `print\_blah\_info` functions in main.rs, refactor that
 * Improve README.md, explain how to use it
 * Warn if the iso to be rebuilt already exists
 * Create an error if there isn't enough free space (and offer a suggestion like decreasing the alignment)
 * Remove the offset param in Game::new
 * Add cool stuff for getting info on the rom like a tree command to view the file system as a tree, an ls or list-files subcommand, cool stuff like that
-* Add more types for the info subcommand, like dol, fst, and other stuff
+* Make a function like Game::is\_valid\_rom that checks to see if it has the magic byte and if it's the right size?
+* Improve the modules exported by lib.rs, like no more gamecube\_iso\_assistant::apploader::Apploader
 
 * Cow could probably be used a few more places to reduce allocations, but the potential benefits probably aren't worth the trouble. Look into this though
 	* Wait a minute... Why don't I just add a name property or something to Segment?
@@ -25,7 +27,7 @@ TODO
 * Add an option for "info" to display values in hexadecimal (make a macro that accepts an option for hex output?)
 * Add a command to disassemble an iso, plus an option to only disassemble a given dol file
 * Add options or commands specifically for apploaders, dol files, etc... so the whole iso isn't needed
-* Add a GCRebuilder compatibility mode (this'd just add weird extra to some files, but that may not even be necessary idk)
+* Add a GCRebuilder compatibility mode (this'd just add weird extra zeros to some files, but that may not even be necessary idk)
 * Improve the info subcommand output
 * Anything in the source with a `TODO: ` label
 * Make methods or functions for adding sections or files to a btree map, maybe make a struct to generalize the thing going on with make\_sections\_btree
@@ -43,6 +45,7 @@ Refactoring
 * Improve DisasmIter
 * Only make stuff public if it needs to be
 * Be consistent (argument order, naming, output, and other stuff)
+* Should FST be renamed to FileSystemTable?
 
 This is golden:
 http://www.gc-forever.com/forums/viewtopic.php?p=1487&sid=a5f89e4c4ee820c1305b27babf50eccd#p1487

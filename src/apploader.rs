@@ -1,4 +1,5 @@
 use std::io::{self, Read, Seek, SeekFrom, Write};
+use std::fmt;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
@@ -65,6 +66,17 @@ impl Extract for Apploader {
     fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
         iso.seek(SeekFrom::Start(APPLOADER_OFFSET))?;
         extract_section(iso, self.total_size(), output)
+    }
+}
+
+impl fmt::Display for Apploader {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Offset: {}", APPLOADER_OFFSET)?;
+        writeln!(f, "Date: {}", self.date)?;
+        writeln!(f, "Code size: {} bytes", self.code_size)?;
+        writeln!(f, "Trailer size: {} bytes", self.trailer_size)?;
+        writeln!(f, "Entry point: not yet implemented")?;
+        write!(f, "Size (including code and trailer, aligned to 32 bytes): {}", self.total_size())
     }
 }
 

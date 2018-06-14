@@ -1,6 +1,7 @@
 use std::io::{self, BufReader, BufRead, Read, Seek, SeekFrom, Write};
 use std::fs::File;
 use std::path::Path;
+use std::fmt;
 
 // This chapter of yagcd was invaluable to working on this file:
 // http://hitmen.c02.at/files/yagcd/yagcd/chap13.html
@@ -192,14 +193,6 @@ impl Header {
         })
     }
 
-    pub fn print_info(&self) {
-        println!("Game ID: {}{}", self.game_code, self.maker_code);
-        println!("Title: {}", self.title);
-        println!("DOL offset: {}", self.dol_offset);
-        println!("FST offset: {}", self.fst_offset);
-        println!("FST size: {}", self.fst_size);
-    }
-
     pub fn write<W: Write>(&self, writer: &mut W) -> io::Result<()> {
         let mut buf = Vec::new();
 
@@ -290,6 +283,16 @@ impl Extract for Header {
     fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
         iso.seek(SeekFrom::Start(0))?;
         extract_section(iso, GAME_HEADER_SIZE, output)
+    }
+}
+
+impl fmt::Display for Header {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Game ID: {}{}", self.game_code, self.maker_code)?;
+        writeln!(f, "Title: {}", self.title)?;
+        writeln!(f, "DOL offset: {}", self.dol_offset)?;
+        writeln!(f, "FST offset: {}", self.fst_offset)?;
+        write!(f, "FST size: {} bytes", self.fst_size)
     }
 }
 

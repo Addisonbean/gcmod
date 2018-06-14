@@ -9,8 +9,10 @@ use std::fs::File;
 use clap::{App, Arg, SubCommand, AppSettings};
 
 use gamecube_iso_assistant::{Game, ROM_SIZE, Extract};
+use gamecube_iso_assistant::fst::FST;
 use gamecube_iso_assistant::header::Header;
 use gamecube_iso_assistant::dol::DOLHeader;
+use gamecube_iso_assistant::apploader::Apploader;
 use gamecube_iso_assistant::disassembler::Disassembler;
 
 fn main() {
@@ -36,7 +38,15 @@ fn main() {
             .arg(Arg::with_name("iso_path").required(true))
             .arg(Arg::with_name("type").short("t").long("type")
                  .takes_value(true).required(false)
-                 .possible_values(&["header"]))
+                 .possible_values(&[
+                    "header",
+                    "dol",
+                    "fst",
+                    "apploader",
+                    "app_loader",
+                    "app-loader",
+                 ])
+                 .case_insensitive(true))
             .arg(Arg::with_name("offset").short("o").long("offset")
                  .takes_value(true).required(false)))
 
@@ -178,10 +188,14 @@ fn rebuild_iso<P>(root_path: P, iso_path: P, rebuild_systemdata: bool)
 fn get_info<P: AsRef<Path>>(path: P, section: Option<&str>, offset: Option<&str>) {
     let offset = offset.map(|s| s.parse::<u64>().unwrap()).unwrap_or(0);
 
-    if section == Some("header") {
-        print_header_info(path, offset);
-    } else {
-        print_iso_info(path, offset);
+    match section {
+        Some("header") => print_header_info(path.as_ref(), offset),
+        Some("dol") => print_dol_info(path.as_ref(), offset),
+        Some("fst") => print_fst_info(path.as_ref(), offset),
+        Some("apploader") | Some("app_loader") | Some("app-loader") =>
+            print_apploader_info(path.as_ref(), offset),
+        Some(_) => unreachable!(),
+        None => print_iso_info(path.as_ref(), offset),
     }
 }
 
@@ -189,28 +203,112 @@ fn print_header_info<P: AsRef<Path>>(header_path: P, offset: u64) {
     let mut f = match File::open(header_path.as_ref()) {
         Ok(f) => BufReader::new(f),
         Err(_) => {
-            println!("Couldn't open header");
+            println!("Couldn't open file");
             return;
         },
     };
 
-    match Header::new(&mut f, offset) {
-        Ok(h) => {
-            h.print_info();
+    match Game::open(&mut f, 0) {
+        Ok(g) => {
+            println!("{}", g.header);
             return;
         },
         _ => (),
     }
 
-    match Game::open(&mut f, 0) {
-        Ok(g) => {
-            g.header.print_info();
+    match Header::new(&mut f, offset) {
+        Ok(h) => {
+            println!("{}", h);
             return;
         },
         _ => (),
     }
 
     println!("Invalid header or iso");
+}
+
+fn print_dol_info<P: AsRef<Path>>(dol_path: P, offset: u64) {
+    let mut f = match File::open(dol_path.as_ref()) {
+        Ok(f) => BufReader::new(f),
+        Err(_) => {
+            println!("Couldn't open file");
+            return;
+        },
+    };
+
+    match Game::open(&mut f, 0) {
+        Ok(g) => {
+            println!("{}", g.dol);
+            return;
+        },
+        _ => (),
+    }
+
+    match DOLHeader::new(&mut f, offset) {
+        Ok(d) => {
+            println!("{}", d);
+            return;
+        },
+        _ => (),
+    }
+
+    println!("Invalid dol or iso");
+}
+
+fn print_fst_info<P: AsRef<Path>>(fst_path: P, offset: u64) {
+    let mut f = match File::open(fst_path.as_ref()) {
+        Ok(f) => BufReader::new(f),
+        Err(_) => {
+            println!("Couldn't open file");
+            return;
+        },
+    };
+
+    match Game::open(&mut f, 0) {
+        Ok(g) => {
+            println!("{}", g.fst);
+            return;
+        },
+        _ => (),
+    }
+
+    match FST::new(&mut f, offset) {
+        Ok(fst) => {
+            println!("{}", fst);
+            return;
+        },
+        _ => (),
+    }
+
+    println!("Invalid file system table or iso");
+}
+
+fn print_apploader_info<P: AsRef<Path>>(apploader_path: P, offset: u64) {
+    let mut f = match File::open(apploader_path.as_ref()) {
+        Ok(f) => BufReader::new(f),
+        Err(_) => {
+            println!("Couldn't open file");
+            return;
+        },
+    };
+
+    match Game::open(&mut f, 0) {
+        Ok(g) => {
+            println!("{}", g.apploader);
+            return;
+        },
+        _ => (),
+    }
+
+    match Apploader::new(&mut f, offset) {
+        Ok(a) => {
+            println!("{}", a);
+            return;
+        },
+        _ => (),
+    }
+
+    println!("Invalid apploader or iso");
 }
 
 fn find_offset<P: AsRef<Path>>(header_path: P, offset: &str, output: Option<P>) {
@@ -244,13 +342,12 @@ fn find_offset<P: AsRef<Path>>(header_path: P, offset: &str, output: Option<P>) 
                 }
             };
 
-            section.extract(&mut iso, &mut file);
+            section.extract(&mut iso, &mut file).unwrap();
         }
     });
 }
 
 fn try_to_open_game<P: AsRef<Path>>(
-    // path: impl AsRef<Path>,
     path: P,
     offset: u64,
 ) -> Option<(Game, BufReader<impl Read + Seek>)> {

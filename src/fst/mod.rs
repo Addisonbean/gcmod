@@ -4,6 +4,7 @@ use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::fs::{File, read_dir};
 use std::collections::BTreeMap;
+use std::fmt;
 
 use byteorder::{BigEndian, ReadBytesExt};
 
@@ -319,6 +320,16 @@ impl Extract for FST {
     fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
         iso.seek(SeekFrom::Start(self.offset))?;
         extract_section(iso, self.size, output)
+    }
+}
+
+impl fmt::Display for FST {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Offset: {}", self.offset)?;
+        writeln!(f, "Total entries: {}", self.entries.len())?;
+        writeln!(f, "Total files: {}", self.file_count)?;
+        writeln!(f, "Total space used by files: {} bytes", self.total_file_system_size)?;
+        write!(f, "Size: {} bytes", self.size)
     }
 }
 
