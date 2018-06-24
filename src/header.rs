@@ -1,7 +1,7 @@
 use std::io::{self, BufReader, BufRead, Read, Seek, SeekFrom, Write};
 use std::fs::File;
 use std::path::Path;
-use std::fmt;
+use std::borrow::Cow;
 
 // This chapter of yagcd was invaluable to working on this file:
 // http://hitmen.c02.at/files/yagcd/yagcd/chap13.html
@@ -10,8 +10,8 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 use fst::FST;
 use apploader::APPLOADER_OFFSET;
-use layout_section::LayoutSection;
-use ::{align, Extract, extract_section, ReadSeek};
+use layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
+use ::{align, ReadSeek};
 
 pub const GAME_HEADER_SIZE: usize = 0x2440;
 
@@ -137,7 +137,10 @@ impl Header {
         file.seek(SeekFrom::Current(UNUSED_REGION_1_SIZE as i64))?;
 
         if file.read_u32::<BigEndian>()? != MAGIC_WORD {
-            // return some kind of error
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Invalid file type",
+            ));
         }
 
         let mut title = Vec::with_capacity(GAME_NAME_SIZE);
@@ -147,7 +150,7 @@ impl Header {
             title.remove(last_index);
         }
         let title = String::from_utf8(title).map_err(|_| io::Error::new(
-            io::ErrorKind::Other,
+            io::ErrorKind::InvalidData,
             "ROM Title was not valid UTF-8"
         ))?;
 
@@ -273,26 +276,42 @@ impl Header {
     }
 }
 
-impl<'a, 'b> From<&'b Header> for LayoutSection<'a, 'b> {
-    fn from(h: &'b Header) -> LayoutSection<'a, 'b> {
-        LayoutSection::new("ISO.hdr", "Header", 0, GAME_HEADER_SIZE, h)
+impl<'a> LayoutSection<'a> for Header {
+    fn name(&'a self) -> Cow<'a, str> {
+        "&&systemdata/ISO.hdr".into()
+    }
+
+    fn section_type(&self) -> SectionType {
+        SectionType::Header
+    }
+
+    fn len(&self) -> usize {
+        GAME_HEADER_SIZE
+    }
+
+    fn start(&self) -> u64 {
+        0
+    }
+
+    fn print_info(&self) {
+        println!("Game ID: {}{}", self.game_code, self.maker_code);
+        println!("Title: {}", self.title);
+        println!("DOL offset: {}", self.dol_offset);
+        println!("FST offset: {}", self.fst_offset);
+        println!("FST size: {} bytes", self.fst_size);
     }
 }
 
-impl Extract for Header {
-    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
-        iso.seek(SeekFrom::Start(0))?;
-        extract_section(iso, GAME_HEADER_SIZE, output)
+impl<'a> UniqueLayoutSection<'a> for Header {
+    fn section_type(&self) -> UniqueSectionType {
+        UniqueSectionType::Header
     }
-}
 
-impl fmt::Display for Header {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Game ID: {}{}", self.game_code, self.maker_code)?;
-        writeln!(f, "Title: {}", self.title)?;
-        writeln!(f, "DOL offset: {}", self.dol_offset)?;
-        writeln!(f, "FST offset: {}", self.fst_offset)?;
-        write!(f, "FST size: {} bytes", self.fst_size)
+    fn with_offset(
+        file: &mut BufReader<impl ReadSeek>,
+        offset: u64,
+    ) -> io::Result<Header> {
+        Header::new(file, offset)
     }
 }
 

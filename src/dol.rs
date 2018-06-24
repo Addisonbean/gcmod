@@ -1,12 +1,12 @@
-use std::io::{self, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
 use std::cmp::max;
 use std::iter::Iterator;
-use std::fmt;
+use std::borrow::Cow;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use layout_section::LayoutSection;
-use ::{Extract, extract_section, ReadSeek};
+use layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
+use ::{extract_section, ReadSeek};
 
 const TEXT_SEG_COUNT: usize = 7;
 const DATA_SEG_COUNT: usize = 11;
@@ -20,7 +20,7 @@ pub enum SegmentType {
 }
 
 impl SegmentType {
-    pub fn to_string(self, seg_num: usize) -> String {
+    pub fn to_string(self, seg_num: u64) -> String {
         use self::SegmentType::*;
         match self {
             Text => format!(".text{}", seg_num),
@@ -65,7 +65,7 @@ impl Segment {
     }
 
     pub fn to_string(self) -> String {
-        self.seg_type.to_string(self.seg_num as usize)
+        self.seg_type.to_string(self.seg_num)
     }
 }
 
@@ -167,53 +167,66 @@ impl DOLHeader {
     }
 }
 
-impl<'a, 'b> From<&'b DOLHeader> for LayoutSection<'a, 'b> {
-    fn from(d: &'b DOLHeader) -> LayoutSection<'a, 'b> {
-        LayoutSection::new(
-            "&&systemdata/Start.dol",
-            "DOL Header",
-            d.offset,
-            DOL_HEADER_LEN,
-            d,
-        )
+impl<'a> LayoutSection<'a> for DOLHeader {
+    fn name(&self) -> Cow<'static, str> {
+        "&&systemdata/Start.dol".into()
+    }
+
+    fn section_type(&self) -> SectionType {
+        SectionType::DOLHeader
+    }
+
+    fn len(&self) -> usize {
+        DOL_HEADER_LEN
+    }
+
+    fn start(&self) -> u64 {
+        self.offset
+    }
+
+    fn print_info(&self) {
+        println!("Offset: {}", self.offset);
+        println!("Size: {} bytes", self.dol_size);
+        println!("Header Size: {} bytes", DOL_HEADER_LEN);
+        println!("Entry point: {}", self.entry_point);
     }
 }
 
-impl<'a, 'b> From<&'b Segment> for LayoutSection<'a, 'b> {
-    fn from(s: &'b Segment) -> LayoutSection<'a, 'b> {
-        LayoutSection::new(
-            s.to_string(),
-            "DOL Segment",
-            s.offset,
-            s.size,
-            s,
-        )
+impl<'a> UniqueLayoutSection<'a> for DOLHeader {
+    fn section_type(&self) -> UniqueSectionType {
+        UniqueSectionType::DOLHeader
+    }
+
+    fn with_offset(
+        file: &mut BufReader<impl ReadSeek>,
+        offset: u64,
+    ) -> io::Result<DOLHeader> {
+        DOLHeader::new(file, offset)
     }
 }
 
-impl Extract for DOLHeader {
-    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
-        iso.seek(SeekFrom::Start(self.offset))?;
-        extract_section(iso, DOL_HEADER_LEN, output)
+impl<'a> LayoutSection<'a> for Segment {
+    fn name(&self) -> Cow<'static, str> {
+        self.to_string().into()
     }
-}
 
-impl Extract for Segment {
-    fn extract(
-        &self,
-        iso: &mut ReadSeek,
-        output: &mut Write,
-    ) -> io::Result<()> {
-        iso.seek(SeekFrom::Start(self.offset))?;
-        extract_section(iso, self.size, output)
+    fn section_type(&self) -> SectionType {
+        SectionType::DOLSegment
     }
-}
 
-impl fmt::Display for DOLHeader {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Offset: {}", self.offset)?;
-        writeln!(f, "Size: {} bytes", self.dol_size)?;
-        write!(f, "Entry point: {}", self.entry_point)
+    fn len(&self) -> usize {
+        self.size
+    }
+
+    fn start(&self) -> u64 {
+        self.offset
+    }
+
+    fn print_info(&self) {
+        println!("Segment id: {}", self.seg_num);
+        println!("Segment type: {}", self.seg_type.to_string(self.seg_num));
+        println!("Offset: {}", self.offset);
+        println!("Size: {}", self.size);
     }
 }
 

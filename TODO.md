@@ -1,21 +1,34 @@
-TODO
+# TODO
 
-* Add traits like Rebuild, Info (or just use Display?), etc... (where would these be helpful? Anywhere?)
-* Get rid of all the `print\_blah\_info` functions in main.rs, refactor that
+## Next
+
+* Add the string table section back
+* Move segment into src/dol/segment.rs
+* Have segments create their segment name in new, then make LayoutSection.name return a &str
+* Add more methods to layout\_section, like rebuild and extract related stuff?
+
 * Improve README.md, explain how to use it
 * Warn if the iso to be rebuilt already exists
 * Create an error if there isn't enough free space (and offer a suggestion like decreasing the alignment)
+	* Also a way to specify a different default alignment
 * Remove the offset param in Game::new
 * Add cool stuff for getting info on the rom like a tree command to view the file system as a tree, an ls or list-files subcommand, cool stuff like that
-* Make a function like Game::is\_valid\_rom that checks to see if it has the magic byte and if it's the right size?
 * Improve the modules exported by lib.rs, like no more gamecube\_iso\_assistant::apploader::Apploader
+* Add a "layout" options for the --type argument of the info subcommand
+* Make methods or functions for adding sections or files to a btree map, maybe make a struct to generalize the thing going on with make\_sections\_btree
+* Make a function like Game::is\_valid\_rom that checks to see if it has the magic byte and if it's the right size?
+* Add an option to rebuild that doesn't rebuild the &&systemdata directory (should that be the default? probably?)
+* Make the disassembler more practical/easier to use
+	* Read the objdump path from an enviroment variable? As well as the option?
+* Accept hex numbers as inputs
+* Improve error messages
 
+* Keep working on the documentation on Google Docs
+* Improve this file, make it neater and well organized/prioritized
 * Cow could probably be used a few more places to reduce allocations, but the potential benefits probably aren't worth the trouble. Look into this though
 	* Wait a minute... Why don't I just add a name property or something to Segment?
 * Add a way to check for free space (display this after rebuilding?)
 * Add a way to specify a certain alignment for files matching a regex?
-	* Also a way to specify a different default alignment
-* Keep working on the documentation on Google Docs
 * Make Entry::new return a Result, not Option
 * Add more subcommands
 * Add a progress indicator for the rebuild command
@@ -30,14 +43,10 @@ TODO
 * Add a GCRebuilder compatibility mode (this'd just add weird extra zeros to some files, but that may not even be necessary idk)
 * Improve the info subcommand output
 * Anything in the source with a `TODO: ` label
-* Make methods or functions for adding sections or files to a btree map, maybe make a struct to generalize the thing going on with make\_sections\_btree
-* Improve error messages
 * Make consts for the default system data path and the files in there
 	* Maybe a property of Game that stores the filenames?
 * Add offsets for other commands (info has it now)
-* Add an option to rebuild that doesn't rebuild the &&systemdata directory (should that be the default? probably?)
 * Add a way to only extract a single file
-* Accept hex numbers as inputs
 * Add tests
 * Make sure it works for Japanese ROMs and unicode
 

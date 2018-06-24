@@ -11,7 +11,7 @@ use apploader::{APPLOADER_OFFSET, Apploader};
 use dol::DOLHeader;
 use fst::FST;
 use fst::entry::{DirectoryEntry, Entry};
-use layout_section::LayoutSection;
+use layout_section::{LayoutSection, UniqueLayoutSection, UniqueSectionType};
 use ::{extract_section, WRITE_CHUNK_SIZE};
 
 pub const ROM_SIZE: usize = 0x57058000;
@@ -46,24 +46,24 @@ impl Game {
             + self.dol.data_segments.len()
             + self.fst.entries.len();
 
-        let mut layout = Vec::with_capacity(size);
+        let mut layout: Vec<&LayoutSection> = Vec::with_capacity(size);
 
-        layout.push((&self.header).into());
-        layout.push((&self.apploader).into());
+        layout.push(&self.header);
+        layout.push(&self.apploader);
 
-        layout.push((&self.dol).into());
+        layout.push(&self.dol);
 
         for e in self.dol.iter_segments() {
             if e.size != 0 {
-                layout.push(e.into());
+                layout.push(e);
             }
         }
 
-        layout.push((&self.fst).into());
-        layout.push(self.fst.string_table_layout_section());
+        layout.push(&self.fst);
+        // layout.push(self.fst.string_table_layout_section());
 
         for f in self.fst.entries.iter().filter_map(|e| e.as_file()) {
-            layout.push(f.into());
+            layout.push(f);
         }
 
         layout.sort_unstable();
@@ -148,6 +148,16 @@ impl Game {
     ) -> io::Result<()> {
         println!("Writing file system table...");
         FST::extract(iso, file, self.header.fst_offset)
+    }
+
+    pub fn get_section(&self, section_type: &UniqueSectionType) -> &UniqueLayoutSection {
+        use layout_section::UniqueSectionType::*;
+        match section_type {
+            Header => &self.header as &UniqueLayoutSection,
+            Apploader => &self.apploader as &UniqueLayoutSection,
+            DOLHeader => &self.dol as &UniqueLayoutSection,
+            FST => &self.fst as &UniqueLayoutSection,
+        }
     }
 
     pub fn print_info(&self) {
@@ -296,10 +306,11 @@ fn fill_files_btree<P: AsRef<Path>>(
     }
 }
 
-pub struct ROMLayout<'a, 'b>(Vec<LayoutSection<'a, 'b>>);
+pub struct ROMLayout<'a>(Vec<&'a LayoutSection<'a>>);
 
-impl<'a, 'b> ROMLayout<'a, 'b> {
-    pub fn find_offset(&self, offset: u64) -> Option<&LayoutSection> {
+impl<'a> ROMLayout<'a> {
+    // pub fn find_offset(&self, offset: u64) -> Option<&LayoutSection> {
+    pub fn find_offset(&'a self, offset: u64) -> Option<&'a LayoutSection<'a>> {
         // I don't use `Iterator::find` here because I can't break early once
         // a section is passed that has a greater starting offset than `offset`
 
@@ -308,7 +319,7 @@ impl<'a, 'b> ROMLayout<'a, 'b> {
         for s in &self.0 {
             match s.compare_offset(offset) {
                 Less => return None,
-                Equal => return Some(s),
+                Equal => return Some(*s),
                 Greater => (),
             }
         }

@@ -1,17 +1,17 @@
 pub mod entry;
 
-use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::fs::{File, read_dir};
 use std::collections::BTreeMap;
-use std::fmt;
+use std::borrow::Cow;
 
 use byteorder::{BigEndian, ReadBytesExt};
 
 use self::entry::{DirectoryEntry, Entry, EntryInfo, FileEntry, ENTRY_SIZE};
 use apploader::APPLOADER_OFFSET;
-use layout_section::LayoutSection;
-use ::{align, Extract, extract_section, ReadSeek};
+use layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
+use ::{align, extract_section, ReadSeek};
 
 pub const FST_OFFSET_OFFSET: u64 = 0x0424; 
 pub const FST_SIZE_OFFSET: u64 = 0x0428;
@@ -268,17 +268,17 @@ impl FST {
         Ok(())
     }
 
-    pub fn string_table_layout_section<'a, 'b>(&'b self) -> LayoutSection<'a, 'b> {
-        let fst_size = self.entries.len() * ENTRY_SIZE;
-        LayoutSection::new(
-            "&&systemdata/Game.toc",
-            "String Table",
-            self.offset + fst_size as u64,
-            self.size - fst_size,
-            // TODO: this needs to be changed
-            self,
-        )
-    }
+    // pub fn string_table_layout_section<'a, 'b>(&'b self) -> LayoutSection<'a, 'b> {
+        // let fst_size = self.entries.len() * ENTRY_SIZE;
+        // LayoutSection::new(
+            // "&&systemdata/Game.toc",
+            // SectionType::FST,
+            // self.offset + fst_size as u64,
+            // self.size - fst_size,
+            // // TODO: this needs to be changed
+            // self,
+        // )
+    // }
 
     pub fn get_parent_for_entry(&self, entry: &EntryInfo) -> Option<&Entry> {
         entry.directory_index.map(|i| &self.entries[i])
@@ -303,33 +303,42 @@ impl FST {
     }
 }
 
-impl<'a, 'b> From<&'b FST> for LayoutSection<'a, 'b> {
-    fn from(fst: &'b FST) -> LayoutSection<'a, 'b> {
-        let size = fst.entries.len() * ENTRY_SIZE;
-        LayoutSection::new(
-            "&&systemdata/Game.toc",
-            "File System Table",
-            fst.offset,
-            size,
-            fst
-        )
+impl<'a> LayoutSection<'a> for FST {
+    fn name(&self) -> Cow<'static, str> {
+        "&&systemdata/Game.toc".into()
+    }
+
+    fn section_type(&self) -> SectionType {
+        SectionType::FST
+    }
+
+    fn len(&self) -> usize {
+        self.size
+    }
+
+    fn start(&self) -> u64 {
+        self.offset
+    }
+
+    fn print_info(&self) {
+        println!("Offset: {}", self.offset);
+        println!("Total entries: {}", self.entries.len());
+        println!("Total files: {}", self.file_count);
+        println!("Total space used by files: {} bytes", self.total_file_system_size);
+        println!("Size: {} bytes", self.size);
     }
 }
 
-impl Extract for FST {
-    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
-        iso.seek(SeekFrom::Start(self.offset))?;
-        extract_section(iso, self.size, output)
+impl<'a> UniqueLayoutSection<'a> for FST {
+    fn section_type(&self) -> UniqueSectionType {
+        UniqueSectionType::FST
     }
-}
 
-impl fmt::Display for FST {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Offset: {}", self.offset)?;
-        writeln!(f, "Total entries: {}", self.entries.len())?;
-        writeln!(f, "Total files: {}", self.file_count)?;
-        writeln!(f, "Total space used by files: {} bytes", self.total_file_system_size)?;
-        write!(f, "Size: {} bytes", self.size)
+    fn with_offset(
+        file: &mut BufReader<impl ReadSeek>,
+        offset: u64,
+    ) -> io::Result<FST> {
+        FST::new(file, offset)
     }
 }
 

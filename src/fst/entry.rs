@@ -1,11 +1,12 @@
 use std::io::{self, BufRead, Seek, SeekFrom, Write};
 use std::fs::{File, create_dir_all};
 use std::path::{Path, PathBuf};
+use std::borrow::Cow;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use layout_section::LayoutSection;
-use ::{Extract, extract_section, ReadSeek};
+use layout_section::{LayoutSection, SectionType};
+use ::extract_section;
 
 pub const ENTRY_SIZE: usize = 12;
 
@@ -286,16 +287,27 @@ impl<'a> Iterator for DirectoryIter<'a> {
     }
 }
 
-impl<'b> From<&'b FileEntry> for LayoutSection<'b, 'b> {
-    fn from(f: &'b FileEntry) -> LayoutSection<'b, 'b> {
-        LayoutSection::new(f.info.full_path.to_string_lossy(), "File", f.file_offset, f.size, f)
+impl<'a> LayoutSection<'a> for FileEntry {
+    fn name(&'a self) -> Cow<'a, str> {
+        self.info.full_path.to_string_lossy().into()
     }
-}
 
-impl Extract for FileEntry {
-    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
-        iso.seek(SeekFrom::Start(self.file_offset))?;
-        extract_section(iso, self.size, output)
+    fn section_type(&self) -> SectionType {
+        SectionType::File
+    }
+
+    fn len(&self) -> usize {
+        self.size
+    }
+
+    fn start(&self) -> u64 {
+        self.file_offset
+    }
+
+    fn print_info(&self) {
+        println!("Path: {}", self.info.full_path.to_string_lossy());
+        println!("Offset: {}", self.file_offset);
+        println!("Size: {}", self.size);
     }
 }
 

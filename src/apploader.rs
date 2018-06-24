@@ -1,10 +1,10 @@
-use std::io::{self, Read, Seek, SeekFrom, Write};
-use std::fmt;
+use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
+use std::borrow::Cow;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
-use layout_section::LayoutSection;
-use ::{align_to, Extract, extract_section, ReadSeek};
+use layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
+use ::{align_to, extract_section, ReadSeek};
 
 pub const APPLOADER_OFFSET: u64 = 0x2440;
 const APPLOADER_DATE_SIZE: usize = 0x0A;
@@ -56,27 +56,43 @@ impl Apploader {
     }
 }
 
-impl<'a, 'b> From<&'b Apploader> for LayoutSection<'a, 'b> {
-    fn from(a: &'b Apploader) -> LayoutSection<'a, 'b> {
-        LayoutSection::new("&&systemdata/Apploader.ldr", "Apploader", APPLOADER_OFFSET, a.total_size(), a)
+impl<'a> LayoutSection<'a> for Apploader {
+    fn name(&self) -> Cow<'static, str> {
+        "&&systemdata/Apploader.hdr".into()
+    }
+
+    fn section_type(&self) -> SectionType {
+        SectionType::Apploader
+    }
+
+    fn len(&self) -> usize {
+        self.total_size()
+    }
+
+    fn start(&self) -> u64 {
+        APPLOADER_OFFSET
+    }
+
+    fn print_info(&self) {
+        println!("Offset: {}", APPLOADER_OFFSET);
+        println!("Date: {}", self.date);
+        println!("Code size: {} bytes", self.code_size);
+        println!("Trailer size: {} bytes", self.trailer_size);
+        println!("Entry point: not yet implemented");
+        println!("Size (including code and trailer, aligned to 32 bytes): {}", self.total_size());
     }
 }
 
-impl Extract for Apploader {
-    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
-        iso.seek(SeekFrom::Start(APPLOADER_OFFSET))?;
-        extract_section(iso, self.total_size(), output)
+impl<'a> UniqueLayoutSection<'a> for Apploader {
+    fn section_type(&self) -> UniqueSectionType {
+        UniqueSectionType::Apploader
     }
-}
 
-impl fmt::Display for Apploader {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Offset: {}", APPLOADER_OFFSET)?;
-        writeln!(f, "Date: {}", self.date)?;
-        writeln!(f, "Code size: {} bytes", self.code_size)?;
-        writeln!(f, "Trailer size: {} bytes", self.trailer_size)?;
-        writeln!(f, "Entry point: not yet implemented")?;
-        write!(f, "Size (including code and trailer, aligned to 32 bytes): {}", self.total_size())
+    fn with_offset(
+        file: &mut BufReader<impl ReadSeek>,
+        offset: u64,
+    ) -> io::Result<Apploader> {
+        Apploader::new(file, offset)
     }
 }
 

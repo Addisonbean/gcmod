@@ -1,90 +1,145 @@
-use std::io::{self, Write};
+use std::io::{self, BufReader, SeekFrom, Write};
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::cmp::Ordering::*;
 use std::borrow::Cow;
-use std::fmt;
 
-use ::{Extract, ReadSeek};
+use header::Header;
+use apploader::Apploader;
+use dol::DOLHeader;
+use fst::FST;
 
-#[derive(Debug)]
-pub struct LayoutSection<'a, 'b> {
-    pub name: Cow<'a, str>,
-    pub section_type: &'static str,
-    pub start: u64,
-    pub end: u64,
-    section: &'b Extract,
-}
+use ::{extract_section, ReadSeek};
 
-impl<'a, 'b> LayoutSection<'a, 'b> {
-    pub fn new(
-        name: impl Into<Cow<'a, str>>,
-        section_type: &'static str,
-        start: u64,
-        len: usize,
-        section: &'b Extract,
-    ) -> LayoutSection<'a, 'b> {
-        let end = start + len as u64 - if len == 0 { 0 } else { 1 };
-        LayoutSection {
-            name: name.into(),
-            section_type,
-            start,
-            end,
-            section,
-        }
+pub trait LayoutSection<'a> {
+    fn name(&'a self) -> Cow<'a, str>;
+
+    fn section_type(&self) -> SectionType;
+
+    fn print_info(&self);
+
+    fn len(&self) -> usize;
+
+    fn start(&self) -> u64;
+
+    fn end(&self) -> u64 {
+        self.start() + self.len() as u64 - 1
     }
 
-    pub fn len(&self) -> usize {
-        (self.end - self.start) as usize + 1
+    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
+        iso.seek(SeekFrom::Start(self.start()))?;
+        extract_section(iso, self.len(), output)
     }
 
-    pub fn compare_offset(&self, offset: u64) -> Ordering {
-        if offset < self.start {
+    fn compare_offset(&self, offset: u64) -> Ordering {
+        if offset < self.start() {
             Less
-        } else if offset > self.end {
+        } else if offset > self.end() {
             Greater
         } else {
             Equal
         }
     }
 
-    pub fn contains_offset(&self, offset: u64) -> bool {
+    fn contains_offset(&self, offset: u64) -> bool {
         self.compare_offset(offset) == Equal
     }
-}
 
-impl<'a, 'b> Extract for LayoutSection<'a, 'b> {
-    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()> {
-        self.section.extract(iso, output)
+    fn print_section_info(&'a self) {
+        println!("Name: {}", self.name());
+        println!("Type: {}", self.section_type().to_str());
+        println!("Start: {}", self.start());
+        println!("End: {}", self.end());
+        println!("Size: {} bytes", self.len());
     }
 }
 
-impl<'a, 'b> PartialEq for LayoutSection<'a, 'b> {
+impl<'a> PartialEq for LayoutSection<'a> {
     fn eq(&self, other: &LayoutSection) -> bool {
-        self.start == other.start
+        self.start() == other.start()
     }
 }
 
-impl<'a, 'b> Eq for LayoutSection<'a, 'b> {}
+impl<'a> Eq for LayoutSection<'a> {}
 
-impl<'a, 'b> PartialOrd for LayoutSection<'a, 'b> {
+impl<'a> PartialOrd for LayoutSection<'a> {
     fn partial_cmp(&self, other: &LayoutSection) -> Option<Ordering> {
-        self.start.partial_cmp(&other.start)
+        self.start().partial_cmp(&other.start())
     }
 }
 
-impl<'a, 'b> Ord for LayoutSection<'a, 'b> {
+impl<'a> Ord for LayoutSection<'a> {
     fn cmp(&self, other: &LayoutSection) -> Ordering {
-        self.start.cmp(&other.start)
+        self.start().cmp(&other.start())
     }
 }
 
-impl<'a, 'b> fmt::Display for LayoutSection<'a, 'b> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Name: {}", self.name)?;
-        writeln!(f, "Type: {}", self.section_type)?;
-        writeln!(f, "Start: {}", self.start)?;
-        writeln!(f, "End: {}", self.end)?;
-        write!(f, "Size: {} bytes", self.len())
+pub trait UniqueLayoutSection<'a>: LayoutSection<'a> {
+    fn section_type(&self) -> UniqueSectionType;
+
+    fn with_offset(
+        file: &mut BufReader<impl ReadSeek>,
+        offset: u64,
+    ) -> io::Result<Self> where Self: Sized;
+}
+
+
+#[derive(Debug)]
+pub enum SectionType {
+    Header,
+    Apploader,
+    DOLHeader,
+    FST,
+    File,
+    DOLSegment,
+}
+
+impl SectionType {
+    pub fn to_str(&self) -> &'static str {
+        use self::SectionType::*;
+        match self {
+            Header => "Header",
+            Apploader => "Apploader",
+            DOLHeader => "DOL Header",
+            DOLSegment => "DOL Segment",
+            FST => "File System Table",
+            File => "File",
+        }
     }
 }
 
+pub enum UniqueSectionType {
+    Header,
+    Apploader,
+    DOLHeader,
+    FST,
+}
+
+impl UniqueSectionType {
+    pub fn to_str(&self) -> &'static str {
+        use self::UniqueSectionType::*;
+        match self {
+            Header => "Header",
+            Apploader => "Apploader",
+            DOLHeader => "DOL Header",
+            FST => "File System Table",
+        }
+    }
+
+    pub fn with_offset(
+        &self,
+        file: &mut BufReader<impl ReadSeek>,
+        offset: u64,
+    ) -> io::Result<Box<UniqueLayoutSection>> {
+        use self::UniqueSectionType as ST;
+        match self {
+            ST::Header => Header::with_offset(file, offset)
+                .map(|s| Box::new(s) as Box<UniqueLayoutSection>),
+            ST::Apploader => Apploader::with_offset(file, offset)
+                .map(|s| Box::new(s) as Box<UniqueLayoutSection>),
+            ST::DOLHeader => DOLHeader::with_offset(file, offset)
+                .map(|s| Box::new(s) as Box<UniqueLayoutSection>),
+            ST::FST => FST::with_offset(file, offset)
+                .map(|s| Box::new(s) as Box<UniqueLayoutSection>),
+        }
+    }
+}

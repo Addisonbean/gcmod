@@ -4,7 +4,6 @@ extern crate lazy_static;
 
 use std::io::{self, Read, Seek, Write};
 use std::cmp::min;
-use std::fmt::Debug;
 
 mod game;
 pub use game::Game;
@@ -48,10 +47,6 @@ pub fn extract_section(
     }
 
     Ok(())
-}
-
-pub trait Extract: Debug {
-    fn extract(&self, iso: &mut ReadSeek, output: &mut Write) -> io::Result<()>;
 }
 
 pub fn align_to(n: u64, m: u64) -> u64 {
