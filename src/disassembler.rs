@@ -5,7 +5,7 @@ use std::str;
 
 use byteorder::{BigEndian, ReadBytesExt};
 
-use dol::Segment;
+use dol::segment::Segment;
 
 pub struct Disassembler<'a> {
     objdump_path: &'a OsStr,

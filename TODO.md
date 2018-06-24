@@ -2,8 +2,6 @@
 
 ## Next
 
-* Add the string table section back
-* Move segment into src/dol/segment.rs
 * Have segments create their segment name in new, then make LayoutSection.name return a &str
 * Add more methods to layout\_section, like rebuild and extract related stuff?
 
@@ -49,6 +47,8 @@
 * Add a way to only extract a single file
 * Add tests
 * Make sure it works for Japanese ROMs and unicode
+* Add a way to make sure things are rebuilt in the right order
+	* Pass in the sections that other section needs rather than open the file?
 
 Refactoring
 * Improve DisasmIter
