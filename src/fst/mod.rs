@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::fs::{File, read_dir};
 use std::collections::BTreeMap;
 use std::borrow::Cow;
+use std::cmp::max;
 
 use byteorder::{BigEndian, ReadBytesExt};
 
@@ -88,12 +89,15 @@ impl FST {
 
         let str_tbl_addr = iso.seek(SeekFrom::Current(0))?;
 
-
+        let mut end = 0;
         for e in entries.iter_mut() {
             e.read_filename(iso, str_tbl_addr)?;
+
+            let curr_end = iso.seek(SeekFrom::Current(0))?;
+            end = max(curr_end, end);
         }
 
-        let size = (iso.seek(SeekFrom::Current(0))? - offset) as usize;
+        let size = (end - offset) as usize;
 
         let mut fst = FST {
             offset,
