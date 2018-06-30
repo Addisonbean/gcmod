@@ -11,7 +11,7 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use fst::FST;
 use apploader::APPLOADER_OFFSET;
 use layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
-use ::{align, ReadSeek};
+use ::{align, extract_section, ReadSeek};
 
 pub const GAME_HEADER_SIZE: usize = 0x2440;
 
@@ -194,6 +194,11 @@ impl Header {
             unknown,
             information,
         })
+    }
+
+    pub fn extract<R: Read + Seek, W: Write>(iso: &mut R, output: &mut W) -> io::Result<()> {
+        iso.seek(SeekFrom::Start(0))?;
+        extract_section(iso, GAME_HEADER_SIZE, output)
     }
 
     pub fn write<W: Write>(&self, writer: &mut W) -> io::Result<()> {

@@ -14,7 +14,7 @@ use layout_section::{
     UniqueSectionType,
 };
 
-use self::segment::Segment;
+use self::segment::{Segment, SegmentType};
 
 use ::{extract_section, ReadSeek};
 
@@ -80,6 +80,14 @@ impl DOLHeader {
             dol_size,
             entry_point,
         })
+    }
+
+    pub fn find_segment(&self, seg_type: SegmentType, number: u64) -> Option<&Segment> {
+        use self::segment::SegmentType::*;
+        match seg_type {
+            Text => &self.text_segments[..],
+            Data => &self.data_segments[..],
+        }.get(number as usize)
     }
 
     pub fn iter_segments(&self) -> impl Iterator<Item = &Segment> {

@@ -21,15 +21,9 @@ fn main() {
             .arg(Arg::with_name("iso_path").short("i").long("iso")
                  .takes_value(true).required(true))
             .arg(Arg::with_name("root_path").short("r").long("root")
-                 .takes_value(true).required(true)))
-
-        .subcommand(SubCommand::with_name("find-offset")
-            .about("Display information about an offset in the ROM.")
-            .arg(Arg::with_name("iso_path").required(true))
-            .arg(Arg::with_name("offset").short("o").long("offset")
                  .takes_value(true).required(true))
-            .arg(Arg::with_name("output").long("output")
-                 .takes_value(true).required(false)))
+            .arg(Arg::with_name("file_in_iso").short("f").long("file")
+                .takes_value(true).required(false)))
 
         .subcommand(SubCommand::with_name("info")
             .about("Display information about the ROM.")
@@ -46,7 +40,8 @@ fn main() {
                  ])
                  .case_insensitive(true))
             .arg(Arg::with_name("offset").short("o").long("offset")
-                 .takes_value(true).required(false)))
+                 .takes_value(true).required(false)
+                 .conflicts_with("type")))
 
         .subcommand(SubCommand::with_name("disasm")
             .about("Disassemble the main DOL file from an iso.")
@@ -67,18 +62,13 @@ fn main() {
             extract_iso(
                 cmd.value_of("iso_path").unwrap(),
                 cmd.value_of("root_path").unwrap(),
+                cmd.value_of("file_in_iso"),
             ),
         ("info", Some(cmd)) => 
             get_info(
                 cmd.value_of("iso_path").unwrap(),
                 cmd.value_of("type"),
                 cmd.value_of("offset"),
-            ),
-        ("find-offset", Some(cmd)) => 
-            find_offset(
-                cmd.value_of("iso_path").unwrap(),
-                cmd.value_of("offset").unwrap(),
-                cmd.value_of("output"),
             ),
         ("disasm", Some(cmd)) =>
             disassemble_dol(
@@ -95,7 +85,12 @@ fn main() {
     }
 }
 
-fn extract_iso<P: AsRef<Path>>(input: P, output: P) {
+fn extract_iso<P: AsRef<Path>>(input: P, output: P, file_in_iso: Option<P>) {
+    if let Some(file) = file_in_iso {
+        extract_section(input.as_ref(), file.as_ref(), output.as_ref());
+        return;
+    }
+
     let output = output.as_ref();
     if output.exists() {
         eprintln!("Error: {} already exists.", output.display());
@@ -176,7 +171,6 @@ fn rebuild_iso<P>(root_path: P, iso_path: P, rebuild_systemdata: bool)
     where P: AsRef<Path>
 {
     let mut iso = File::create(iso_path.as_ref()).unwrap(); 
-    // Game::rebuild(root_path.as_ref(), &mut iso, rebuild_systemdata).unwrap();
     if let Err(e) = Game::rebuild(root_path.as_ref(), &mut iso, rebuild_systemdata) {
         eprintln!("Couldn't rebuild iso.");
         println!("{:?}", e);
@@ -186,20 +180,22 @@ fn rebuild_iso<P>(root_path: P, iso_path: P, rebuild_systemdata: bool)
 fn get_info<P: AsRef<Path>>(path: P, section: Option<&str>, offset: Option<&str>) {
     use gamecube_iso_assistant::layout_section::UniqueSectionType::*;
 
-    let offset = offset.map(|s| s.parse::<u64>().unwrap()).unwrap_or(0);
-
-    match section {
-        Some("header") => print_section_info(path.as_ref(), offset, &Header),
-        Some("dol") => print_section_info(path.as_ref(), offset, &DOLHeader),
-        Some("fst") => print_section_info(path.as_ref(), offset, &FST),
-        Some("apploader") | Some("app_loader") | Some("app-loader") =>
-            print_section_info(path.as_ref(), offset, &Apploader),
-        Some(_) => unreachable!(),
-        None => print_iso_info(path.as_ref(), offset),
+    if let Some(offset) = offset {
+        find_offset(path.as_ref(), offset);
+    } else {
+        match section {
+            Some("header") => print_section_info(path.as_ref(), &Header),
+            Some("dol") => print_section_info(path.as_ref(), &DOLHeader),
+            Some("fst") => print_section_info(path.as_ref(), &FST),
+            Some("apploader") | Some("app_loader") | Some("app-loader") =>
+                print_section_info(path.as_ref(), &Apploader),
+            Some(_) => unreachable!(),
+            None => print_iso_info(path.as_ref(), 0),
+        }
     }
 }
 
-fn print_section_info(path: impl AsRef<Path>, offset: u64, section_type: &UniqueSectionType) {
+fn print_section_info(path: impl AsRef<Path>, section_type: &UniqueSectionType) {
     let mut f = match File::open(path.as_ref()) {
         Ok(f) => BufReader::new(f),
         Err(_) => {
@@ -210,13 +206,13 @@ fn print_section_info(path: impl AsRef<Path>, offset: u64, section_type: &Unique
 
     match Game::open(&mut f, 0) {
         Ok(g) => {
-            g.get_section(section_type).print_info();
+            g.get_section_by_type(section_type).print_info();
             return;
         },
         _ => (),
     }
 
-    match section_type.with_offset(&mut f, offset) {
+    match section_type.with_offset(&mut f, 0) {
         Ok(s) => {
             s.print_info();
             return;
@@ -224,10 +220,10 @@ fn print_section_info(path: impl AsRef<Path>, offset: u64, section_type: &Unique
         _ => (),
     }
 
-    println!("Invalid file");
+    eprintln!("Invalid file");
 }
 
-fn find_offset<P: AsRef<Path>>(header_path: P, offset: &str, output: Option<P>) {
+fn find_offset<P: AsRef<Path>>(header_path: P, offset: &str) {
     let offset = match offset.parse::<u64>() {
         Ok(o) if (o as usize) < ROM_SIZE => o,
         _ => {
@@ -235,30 +231,28 @@ fn find_offset<P: AsRef<Path>>(header_path: P, offset: &str, output: Option<P>) 
             return;
         },
     };
-    try_to_open_game(header_path.as_ref(), 0).map(|(game, mut iso)| {
+    try_to_open_game(header_path.as_ref(), 0).map(|(game, _)| {
         // TODO: if None, tell if there's no data beyond this point
         // Also provide a message saying it's just blank space if it's None
         let layout = game.rom_layout();
         let section = match layout.find_offset(offset) {
             Some(s) => s,
             None => {
-                println!("There isn't any data at this offset.");
+                eprintln!("There isn't any data at this offset.");
                 return;
             }
         };
 
         section.print_section_info();
+    });
+}
 
-        if let Some(filename) = output {
-            let mut file = match File::create(filename.as_ref()) {
-                Ok(f) => f,
-                Err(_) => {
-                    println!("Error: file already exists");
-                    return;
-                }
-            };
-
-            section.extract(&mut iso, &mut file).unwrap();
+fn extract_section(iso_path: impl AsRef<Path>, section_filename: impl AsRef<Path>, output: impl AsRef<Path>) {
+    try_to_open_game(iso_path.as_ref(), 0).map(|(game, mut iso)| {
+        match game.extract_section_with_name(section_filename, output.as_ref(), &mut iso) {
+            Ok(true) => (),
+            Ok(false) => println!("Couldn't find a section with that name."),
+            Err(_) => eprintln!("Error extracting section."),
         }
     });
 }

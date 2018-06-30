@@ -1,6 +1,7 @@
 extern crate byteorder;
 #[macro_use]
 extern crate lazy_static;
+extern crate regex;
 
 use std::io::{self, Read, Seek, Write};
 use std::cmp::min;

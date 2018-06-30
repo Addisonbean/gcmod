@@ -2,10 +2,24 @@
 
 ## Next
 
+* LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc...
 * Have segments create their segment name in new, then make LayoutSection.name return a &str
+* Add an offset param to extract\_section
 * Add more methods to layout\_section, like rebuild and extract related stuff?
+* Make the info subcommand always give the same output for a section, regardless of whether -t or -o is used.
+	 * Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
+* Use std::path::MAIN\_SEPARATOR for Windows support
+* Rather than doing things like turning OsStr into a &str for comparison, turn the &str into an OsStr
+* Refactor everything in main.rs
+* FST.entry\_with\_name seems to complicated, using entries needs to be easier
+* Make a DOL struct, which contains a DOLHeader struct
+* Use static or dynamic dispatch in the right places (Game::extract\_section\_with\\_name I'm looking at you...)
+* Add an extract associated function to layout_section, rename the extract functions to be more meaningful
+* Add more usful, generic stuff to extract\_section, like an error message if the file already exists
+* Make sure I'm using eprintln where I should be
 
 * Improve README.md, explain how to use it
+* Should the dol store None instead of empty segments?
 * Warn if the iso to be rebuilt already exists
 * Create an error if there isn't enough free space (and offer a suggestion like decreasing the alignment)
 	* Also a way to specify a different default alignment

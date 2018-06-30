@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use regex::Regex;
 
 use layout_section::{LayoutSection, SectionType};
 
@@ -21,9 +22,9 @@ impl SegmentType {
 pub struct Segment {
     // NOTE: `offset` is not the offset stored on the ROM.
     // The ROM provides the offset relative to the start of the DOL header,
-    // whereas this is relative to the beginning of the ROM. It is essentially
-    // the offset relative to the DOL which is given in the ROM,
-    // plus the offset of the DOL itself.
+    // whereas this is relative to the beginning of the ROM. This offset
+    // is essentially the offset relative to the DOL (which is the value
+    // given in the ROM), plus the offset of the DOL itself.
     pub offset: u64,
     pub size: usize,
     pub loading_address: u64,
@@ -54,6 +55,24 @@ impl Segment {
 
     pub fn to_string(self) -> String {
         self.seg_type.to_string(self.seg_num)
+    }
+
+    pub fn parse_segment_name(name: &str) -> Option<(SegmentType, u64)> {
+        use self::SegmentType::*;
+        lazy_static! {
+            static ref SEG_NAME_REGEX: Regex =
+                Regex::new(r"^\.?(text|data)(\d+)$").unwrap();
+        }
+        SEG_NAME_REGEX.captures(name).and_then(|c|
+            c.get(2).unwrap().as_str().parse::<u64>().map(|n| {
+                let t = match c.get(1).unwrap().as_str() {
+                    "text" => Text,
+                    "data" => Data,
+                    _ => unreachable!(),
+                };
+                (t, n)
+            }).ok()
+        )
     }
 }
 

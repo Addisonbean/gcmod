@@ -3,6 +3,7 @@ pub mod entry;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::fs::{File, read_dir};
+use std::ffi::OsStr;
 use std::collections::BTreeMap;
 use std::borrow::Cow;
 use std::cmp::max;
@@ -113,6 +114,10 @@ impl FST {
         }
 
         Ok(fst)
+    }
+
+    pub fn root(&self) -> &DirectoryEntry {
+        self.entries[0].as_dir().unwrap()
     }
 
     pub fn extract_filesystem<P, R, F>(
@@ -272,17 +277,29 @@ impl FST {
         Ok(())
     }
 
-    // pub fn string_table_layout_section<'a, 'b>(&'b self) -> LayoutSection<'a, 'b> {
-        // let fst_size = self.entries.len() * ENTRY_SIZE;
-        // LayoutSection::new(
-            // "&&systemdata/Game.toc",
-            // SectionType::FST,
-            // self.offset + fst_size as u64,
-            // self.size - fst_size,
-            // // TODO: this needs to be changed
-            // self,
-        // )
-    // }
+    pub fn entry_with_name(&self, name: impl AsRef<Path>) -> Option<&Entry> {
+        let name = name.as_ref().strip_prefix("/").unwrap_or(name.as_ref());
+
+        let mut entry = &self.entries[0];
+        for component in name.iter() {
+            if let Some(dir) = entry.as_dir() {
+                for e in dir.iter_contents(&self.entries) {
+                    if component == OsStr::new(&e.info().name) {
+                        entry = e;
+                        break;
+                    }
+                }
+            } else {
+                return None;
+            }
+        }
+
+        if name == Path::new(&entry.info().full_path.strip_prefix("/").unwrap()) {
+            Some(entry)
+        } else {
+            None
+        }
+    }
 
     pub fn get_parent_for_entry(&self, entry: &EntryInfo) -> Option<&Entry> {
         entry.directory_index.map(|i| &self.entries[i])

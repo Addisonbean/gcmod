@@ -1,6 +1,6 @@
 use std::fs::{create_dir, File};
 use std::path::{Path, PathBuf};
-use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufRead, BufReader, Read, Seek, Write};
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 use std::cmp;
@@ -9,6 +9,7 @@ use std::cmp::Ordering::*;
 use header::{GAME_HEADER_SIZE, Header};
 use apploader::{APPLOADER_OFFSET, Apploader};
 use dol::DOLHeader;
+use dol::segment::Segment;
 use fst::FST;
 use fst::entry::{DirectoryEntry, Entry};
 use layout_section::{LayoutSection, UniqueLayoutSection, UniqueSectionType};
@@ -118,8 +119,7 @@ impl Game {
         file: &mut W,
     ) -> io::Result<()> {
         println!("Writing game header...");
-        iso.seek(SeekFrom::Start(0))?;
-        extract_section(iso, GAME_HEADER_SIZE, file)
+        Header::extract(iso, file)
     }
 
     // DOL is the format of the main executable on a GameCube disk
@@ -150,13 +150,37 @@ impl Game {
         FST::extract(iso, file, self.header.fst_offset)
     }
 
-    pub fn get_section(&self, section_type: &UniqueSectionType) -> &UniqueLayoutSection {
+    pub fn get_section_by_type(&self, section_type: &UniqueSectionType) -> &UniqueLayoutSection {
         use layout_section::UniqueSectionType::*;
         match section_type {
             Header => &self.header as &UniqueLayoutSection,
             Apploader => &self.apploader as &UniqueLayoutSection,
             DOLHeader => &self.dol as &UniqueLayoutSection,
             FST => &self.fst as &UniqueLayoutSection,
+        }
+    }
+
+    pub fn extract_section_with_name<R: BufRead + Seek>(&self, filename: impl AsRef<Path>, output: impl AsRef<Path>, iso: &mut R) -> io::Result<bool> {
+        let output = output.as_ref();
+        let filename = &*filename.as_ref().to_string_lossy();
+        match filename {
+            "&&systemdata/ISO.hdr" => Header::extract(iso, &mut File::create(output)?).map(|_| true),
+            "&&systemdata/Apploader.ldr" => Apploader::extract(iso, &mut File::create(output)?).map(|_| true),
+            "&&systemdata/Start.dol" => DOLHeader::extract(iso, self.dol.offset, &mut File::create(output)?).map(|_| true),
+            "&&systemdata/Game.toc" => FST::extract(iso, &mut File::create(output)?, self.fst.offset).map(|_| true),
+            _ => {
+                if let Some(e) = self.fst.entry_with_name(filename) {
+                    e.extract_with_name(output, &self.fst.entries, iso, &|_| {}).map(|_| true)
+                } else if let Some((t, n)) = Segment::parse_segment_name(filename) {
+                    if let Some(s) = self.dol.find_segment(t, n) {
+                        s.extract(iso, &mut File::create(output)?).map(|_| true)
+                    } else {
+                        Ok(false)
+                    }
+                } else {
+                    Ok(false)
+                }
+            },
         }
     }
 
