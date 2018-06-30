@@ -1,4 +1,4 @@
-extern crate gamecube_iso_assistant;
+extern crate gcmod;
 extern crate clap;
 extern crate tempfile;
 
@@ -8,10 +8,10 @@ use std::fs::File;
 
 use clap::{App, Arg, SubCommand, AppSettings};
 
-use gamecube_iso_assistant::{Game, ROM_SIZE};
-use gamecube_iso_assistant::dol::DOLHeader;
-use gamecube_iso_assistant::disassembler::Disassembler;
-use gamecube_iso_assistant::layout_section::UniqueSectionType;
+use gcmod::{Game, ROM_SIZE};
+use gcmod::dol::DOLHeader;
+use gcmod::disassembler::Disassembler;
+use gcmod::layout_section::UniqueSectionType;
 
 fn main() {
     let opts = App::new("gciso")
@@ -178,7 +178,7 @@ fn rebuild_iso<P>(root_path: P, iso_path: P, rebuild_systemdata: bool)
 }
 
 fn get_info<P: AsRef<Path>>(path: P, section: Option<&str>, offset: Option<&str>) {
-    use gamecube_iso_assistant::layout_section::UniqueSectionType::*;
+    use gcmod::layout_section::UniqueSectionType::*;
 
     if let Some(offset) = offset {
         find_offset(path.as_ref(), offset);

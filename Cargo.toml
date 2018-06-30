@@ -1,6 +1,5 @@
 [package]
-# name = "GameCube-ISO-Assistant"
-name = "gamecube-iso-assistant"
+name = "gcmod"
 version = "0.1.0"
 authors = ["Addison Bean <addisonbean@gmail.com>"]
 

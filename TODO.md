@@ -11,7 +11,7 @@
 * Use std::path::MAIN\_SEPARATOR for Windows support
 * Rather than doing things like turning OsStr into a &str for comparison, turn the &str into an OsStr
 * Refactor everything in main.rs
-* FST.entry\_with\_name seems to complicated, using entries needs to be easier
+* FST.entry\_with\_name seems too complicated, using entries needs to be easier
 * Make a DOL struct, which contains a DOLHeader struct
 * Use static or dynamic dispatch in the right places (Game::extract\_section\_with\\_name I'm looking at you...)
 * Add an extract associated function to layout_section, rename the extract functions to be more meaningful
@@ -26,7 +26,7 @@
 * Remove the offset param in Game::new
 * Add cool stuff for getting info on the rom like a tree command to view the file system as a tree, an ls or list-files subcommand, cool stuff like that
 * Improve the modules exported by lib.rs, like no more gamecube\_iso\_assistant::apploader::Apploader
-* Add a "layout" options for the --type argument of the info subcommand
+* Add a "layout" option for the --type argument of the info subcommand
 * Make methods or functions for adding sections or files to a btree map, maybe make a struct to generalize the thing going on with make\_sections\_btree
 * Make a function like Game::is\_valid\_rom that checks to see if it has the magic byte and if it's the right size?
 * Add an option to rebuild that doesn't rebuild the &&systemdata directory (should that be the default? probably?)
