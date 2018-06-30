@@ -2,6 +2,7 @@
 
 ## Next
 
+* Improve README.md, explain how to use it
 * LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc...
 * Have segments create their segment name in new, then make LayoutSection.name return a &str
 * Add an offset param to extract\_section
@@ -12,13 +13,12 @@
 * Rather than doing things like turning OsStr into a &str for comparison, turn the &str into an OsStr
 * Refactor everything in main.rs
 * FST.entry\_with\_name seems too complicated, using entries needs to be easier
-* Make a DOL struct, which contains a DOLHeader struct
+* Make a DOL struct, which contains a DOLHeader struct, and would probably contain the segments directly
 * Use static or dynamic dispatch in the right places (Game::extract\_section\_with\\_name I'm looking at you...)
 * Add an extract associated function to layout_section, rename the extract functions to be more meaningful
 * Add more usful, generic stuff to extract\_section, like an error message if the file already exists
 * Make sure I'm using eprintln where I should be
 
-* Improve README.md, explain how to use it
 * Should the dol store None instead of empty segments?
 * Warn if the iso to be rebuilt already exists
 * Create an error if there isn't enough free space (and offer a suggestion like decreasing the alignment)

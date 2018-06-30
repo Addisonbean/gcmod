@@ -44,13 +44,13 @@ fn main() {
                  .conflicts_with("type")))
 
         .subcommand(SubCommand::with_name("disasm")
-            .about("Disassemble the main DOL file from an iso.")
+            .about("Disassemble the main DOL file from a ROM.")
             .arg(Arg::with_name("iso_path").required(true))
             .arg(Arg::with_name("objdump_path").long("objdump")
                  .takes_value(true).required(false)))
 
         .subcommand(SubCommand::with_name("rebuild")
-            .about("Rebuilds an iso.")
+            .about("Rebuilds a ROM.")
             .arg(Arg::with_name("iso_path").short("i").long("iso")
                  .takes_value(true).required(true))
             .arg(Arg::with_name("root_path").short("r").long("root")
@@ -173,7 +173,7 @@ fn rebuild_iso<P>(root_path: P, iso_path: P, rebuild_systemdata: bool)
     let mut iso = File::create(iso_path.as_ref()).unwrap(); 
     if let Err(e) = Game::rebuild(root_path.as_ref(), &mut iso, rebuild_systemdata) {
         eprintln!("Couldn't rebuild iso.");
-        println!("{:?}", e);
+        eprintln!("{:?}", e);
     }
 }
 
@@ -199,7 +199,7 @@ fn print_section_info(path: impl AsRef<Path>, section_type: &UniqueSectionType) 
     let mut f = match File::open(path.as_ref()) {
         Ok(f) => BufReader::new(f),
         Err(_) => {
-            println!("Couldn't open file");
+            eprintln!("Couldn't open file");
             return;
         },
     };
@@ -227,7 +227,7 @@ fn find_offset<P: AsRef<Path>>(header_path: P, offset: &str) {
     let offset = match offset.parse::<u64>() {
         Ok(o) if (o as usize) < ROM_SIZE => o,
         _ => {
-            println!("Invalid offset. Offset must be a number > 0 and < {}", ROM_SIZE);
+            eprintln!("Invalid offset. Offset must be a number > 0 and < {}", ROM_SIZE);
             return;
         },
     };
@@ -251,7 +251,7 @@ fn extract_section(iso_path: impl AsRef<Path>, section_filename: impl AsRef<Path
     try_to_open_game(iso_path.as_ref(), 0).map(|(game, mut iso)| {
         match game.extract_section_with_name(section_filename, output.as_ref(), &mut iso) {
             Ok(true) => (),
-            Ok(false) => println!("Couldn't find a section with that name."),
+            Ok(false) => eprintln!("Couldn't find a section with that name."),
             Err(_) => eprintln!("Error extracting section."),
         }
     });
