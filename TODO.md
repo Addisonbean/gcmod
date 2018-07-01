@@ -2,7 +2,8 @@
 
 ## Next
 
-* Improve README.md, explain how to use it
+* Make the section names in `gcmod extract -s` more intuitive
+* Add a way to install it (then add that to the readme)
 * LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc...
 * Have segments create their segment name in new, then make LayoutSection.name return a &str
 * Add an offset param to extract\_section

@@ -18,67 +18,66 @@ fn main() {
 
         .subcommand(SubCommand::with_name("extract")
             .about("Extract a ROM's contents to disk.")
-            .arg(Arg::with_name("iso_path").short("i").long("iso")
-                 .takes_value(true).required(true))
-            .arg(Arg::with_name("root_path").short("r").long("root")
-                 .takes_value(true).required(true))
-            .arg(Arg::with_name("file_in_iso").short("f").long("file")
-                .takes_value(true).required(false)))
+            .arg(Arg::with_name("rom_path").required(true))
+            .arg(Arg::with_name("output").required(true))
+            .arg(Arg::with_name("rom_section").short("s").long("section")
+                .takes_value(true).required(false)
+                .help("Specify a single section to extract from the ROM, rather than everything.")))
 
         .subcommand(SubCommand::with_name("info")
             .about("Display information about the ROM.")
-            .arg(Arg::with_name("iso_path").required(true))
-            .arg(Arg::with_name("type").short("t").long("type")
+            .arg(Arg::with_name("rom_path").required(true))
+            .arg(Arg::with_name("section").short("s").long("section")
                  .takes_value(true).required(false)
                  .possible_values(&[
                     "header",
                     "dol",
                     "fst",
                     "apploader",
-                    "app_loader",
-                    "app-loader",
                  ])
-                 .case_insensitive(true))
+                 .case_insensitive(true)
+                 .help("Print information about a given section of the ROM. "))
             .arg(Arg::with_name("offset").short("o").long("offset")
                  .takes_value(true).required(false)
-                 .conflicts_with("type")))
+                 .conflicts_with("section")
+                 .help("Print information about whichever section is at the given offset. ")))
 
         .subcommand(SubCommand::with_name("disasm")
             .about("Disassemble the main DOL file from a ROM.")
-            .arg(Arg::with_name("iso_path").required(true))
+            .arg(Arg::with_name("rom_path").required(true))
             .arg(Arg::with_name("objdump_path").long("objdump")
-                 .takes_value(true).required(false)))
+                 .takes_value(true).required(false)
+                 .help("If you don't have the GNU version of objdump in $PATH, you must provide the path here.")))
+                 // .help("If you don't have the GNU version of objdump in $PATH, you must either provide the path here or set it in the $GCMOD_OBJDUMP enviroment variable.")))
 
         .subcommand(SubCommand::with_name("rebuild")
             .about("Rebuilds a ROM.")
-            .arg(Arg::with_name("iso_path").short("i").long("iso")
-                 .takes_value(true).required(true))
-            .arg(Arg::with_name("root_path").short("r").long("root")
-                 .takes_value(true).required(true)))
+            .arg(Arg::with_name("root_path").required(true))
+            .arg(Arg::with_name("output").required(true)))
 
         .setting(AppSettings::SubcommandRequired);
     match opts.get_matches().subcommand() {
         ("extract", Some(cmd)) => 
             extract_iso(
-                cmd.value_of("iso_path").unwrap(),
-                cmd.value_of("root_path").unwrap(),
-                cmd.value_of("file_in_iso"),
+                cmd.value_of("rom_path").unwrap(),
+                cmd.value_of("output").unwrap(),
+                cmd.value_of("rom_section"),
             ),
         ("info", Some(cmd)) => 
             get_info(
-                cmd.value_of("iso_path").unwrap(),
-                cmd.value_of("type"),
+                cmd.value_of("rom_path").unwrap(),
+                cmd.value_of("section"),
                 cmd.value_of("offset"),
             ),
         ("disasm", Some(cmd)) =>
             disassemble_dol(
-                cmd.value_of("iso_path").unwrap(),
+                cmd.value_of("rom_path").unwrap(),
                 cmd.value_of("objdump_path"),
             ),
         ("rebuild", Some(cmd)) =>
             rebuild_iso(
                 cmd.value_of("root_path").unwrap(),
-                cmd.value_of("iso_path").unwrap(),
+                cmd.value_of("output").unwrap(),
                 true,
             ),
         _ => (),
