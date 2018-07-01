@@ -4,6 +4,7 @@
 
 * Make the section names in `gcmod extract -s` more intuitive
 * Add a way to install it (then add that to the readme)
+* Make the info command give more useful info, and less useless info (plus add verbosity levels with -v, -vv, and so on...)
 * LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc...
 * Have segments create their segment name in new, then make LayoutSection.name return a &str
 * Add an offset param to extract\_section
@@ -22,6 +23,8 @@
 
 * Should the dol store None instead of empty segments?
 * Warn if the iso to be rebuilt already exists
+* Add a way to find out what dol segment will be loaded into a given address in memory, and what the offset will be in that segment at the offset
+* Add a thing like print\_layout for the dol, that prints brief information about all the segments (support -v for added verbosity)
 * Create an error if there isn't enough free space (and offer a suggestion like decreasing the alignment)
 	* Also a way to specify a different default alignment
 * Remove the offset param in Game::new
@@ -38,6 +41,7 @@
 
 * Keep working on the documentation on Google Docs
 * Improve this file, make it neater and well organized/prioritized
+	* Have sections like refactoring, features, usage, ...
 * Cow could probably be used a few more places to reduce allocations, but the potential benefits probably aren't worth the trouble. Look into this though
 	* Wait a minute... Why don't I just add a name property or something to Segment?
 * Add a way to check for free space (display this after rebuilding?)
