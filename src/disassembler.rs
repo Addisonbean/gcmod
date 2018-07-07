@@ -12,12 +12,10 @@ pub struct Disassembler<'a> {
 }
 
 impl<'a> Disassembler<'a> {
-    pub fn objdump_path<P>(objdump_path: &'a P) -> io::Result<Disassembler<'a>>
-        where P: AsRef<OsStr>
-    {
-        Disassembler::check_objdump_version(objdump_path.as_ref())?;
+    pub fn objdump_path(objdump_path: &OsStr) -> io::Result<Disassembler> {
+        Disassembler::check_objdump_version(objdump_path)?;
         Ok(Disassembler {
-            objdump_path: objdump_path.as_ref(),
+            objdump_path,
         })
     }
 
@@ -54,8 +52,8 @@ impl<'a> Disassembler<'a> {
 
     }
 
-    pub fn new<P: AsRef<OsStr>>() -> io::Result<Disassembler<'a>> {
-        Disassembler::objdump_path(&"objdump")
+    pub fn new() -> io::Result<Disassembler<'static>> {
+        Disassembler::objdump_path(&OsStr::new("objdump"))
     }
 
     fn check_objdump_version<P: AsRef<OsStr>>(objdump_path: P) -> io::Result<()> {

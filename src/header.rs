@@ -11,7 +11,7 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use fst::FST;
 use apploader::APPLOADER_OFFSET;
 use layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
-use ::{align, extract_section, ReadSeek};
+use ::{align, extract_section};
 
 pub const GAME_HEADER_SIZE: usize = 0x2440;
 
@@ -91,7 +91,7 @@ pub struct HeaderInformation {
 }
 
 impl HeaderInformation {
-    pub fn new<R: Read + Seek>(file: &mut R, offset: u64) -> io::Result<HeaderInformation> {
+    pub fn new<R: Read + Seek>(mut file: R, offset: u64) -> io::Result<HeaderInformation> {
         file.seek(SeekFrom::Start(offset as u64))?;
         Ok(HeaderInformation {
             debug_monitor_size: file.read_u32::<BigEndian>()?,
@@ -119,7 +119,8 @@ impl HeaderInformation {
 }
 
 impl Header {
-    pub fn new<R: BufRead + Seek>(file: &mut R, offset: u64) -> io::Result<Header> {
+    // pub fn new<R: BufRead + Seek>(file: &mut R, offset: u64) -> io::Result<Header> {
+    pub fn new<R: BufRead + Seek>(mut file: R, offset: u64) -> io::Result<Header> {
         file.seek(SeekFrom::Start(offset as u64))?;
         let mut game_code = String::with_capacity(GAME_CODE_SIZE);
         file.by_ref().take(GAME_CODE_SIZE as u64)
@@ -196,7 +197,7 @@ impl Header {
         })
     }
 
-    pub fn extract<R: Read + Seek, W: Write>(iso: &mut R, output: &mut W) -> io::Result<()> {
+    pub fn extract<R: Read + Seek, W: Write>(mut iso: R, output: W) -> io::Result<()> {
         iso.seek(SeekFrom::Start(0))?;
         extract_section(iso, GAME_HEADER_SIZE, output)
     }
@@ -312,10 +313,14 @@ impl<'a> UniqueLayoutSection<'a> for Header {
         UniqueSectionType::Header
     }
 
-    fn with_offset(
-        file: &mut BufReader<impl ReadSeek>,
+    fn with_offset<R>(
+        file: R,
         offset: u64,
-    ) -> io::Result<Header> {
+    ) -> io::Result<Header>
+    where
+        Self: Sized,
+        R: BufRead + Seek,
+    {
         Header::new(file, offset)
     }
 }

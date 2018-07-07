@@ -1,6 +1,6 @@
 pub mod segment;
 
-use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 use std::cmp::max;
 use std::iter::Iterator;
 use std::borrow::Cow;
@@ -16,7 +16,7 @@ use layout_section::{
 
 use self::segment::{Segment, SegmentType};
 
-use ::{extract_section, ReadSeek};
+use ::extract_section;
 
 const TEXT_SEG_COUNT: usize = 7;
 const DATA_SEG_COUNT: usize = 11;
@@ -34,9 +34,7 @@ pub struct DOLHeader {
 }
 
 impl DOLHeader {
-    pub fn new<F>(file: &mut F, offset: u64) -> io::Result<DOLHeader> 
-        where F: Read + Seek
-    {
+    pub fn new<R: Read + Seek>(mut file: R, offset: u64) -> io::Result<DOLHeader> {
         file.seek(SeekFrom::Start(offset))?;
         let mut text_segments = [Segment::text(); TEXT_SEG_COUNT];
         let mut data_segments = [Segment::data(); DATA_SEG_COUNT];
@@ -95,9 +93,9 @@ impl DOLHeader {
     }
 
     pub fn extract<R: Read + Seek, W: Write>(
-        iso: &mut R,
+        mut iso: R,
         dol_addr: u64,
-        file: &mut W
+        file: W,
     ) -> io::Result<()> {
         iso.seek(SeekFrom::Start(dol_addr))?;
         let mut dol_size = 0;
@@ -160,10 +158,14 @@ impl<'a> UniqueLayoutSection<'a> for DOLHeader {
         UniqueSectionType::DOLHeader
     }
 
-    fn with_offset(
-        file: &mut BufReader<impl ReadSeek>,
+    fn with_offset<R>(
+        file: R,
         offset: u64,
-    ) -> io::Result<DOLHeader> {
+    ) -> io::Result<DOLHeader>
+    where
+        Self: Sized,
+        R: BufRead + Seek,
+    {
         DOLHeader::new(file, offset)
     }
 }

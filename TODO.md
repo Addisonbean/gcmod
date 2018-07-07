@@ -3,6 +3,8 @@
 ## Next
 
 * Make the section names in `gcmod extract -s` more intuitive
+* Fix the style to be consistent with the official Rust style guide
+	* Find missing trailing commas
 * Add a way to install it (then add that to the readme)
 * Make the info command give more useful info, and less useless info (plus add verbosity levels with -v, -vv, and so on...)
 * LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc...
@@ -11,12 +13,12 @@
 * Add more methods to layout\_section, like rebuild and extract related stuff?
 * Make the info subcommand always give the same output for a section, regardless of whether -t or -o is used.
 	 * Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
+* Find where methods are accepting `&Vec` but could accept `&[]`
 * Use std::path::MAIN\_SEPARATOR for Windows support
 * Rather than doing things like turning OsStr into a &str for comparison, turn the &str into an OsStr
 * Refactor everything in main.rs
 * FST.entry\_with\_name seems too complicated, using entries needs to be easier
 * Make a DOL struct, which contains a DOLHeader struct, and would probably contain the segments directly
-* Use static or dynamic dispatch in the right places (Game::extract\_section\_with\\_name I'm looking at you...)
 * Add an extract associated function to layout_section, rename the extract functions to be more meaningful
 * Add more usful, generic stuff to extract\_section, like an error message if the file already exists
 * Make sure I'm using eprintln where I should be

@@ -94,7 +94,7 @@ impl Entry {
         })
     }
 
-    pub fn write<W: Write>(&self, output: &mut W) -> io::Result<()> {
+    pub fn write<W: Write>(&self, mut output: W) -> io::Result<()> {
         let mut buf = [0; ENTRY_SIZE];
         let name_offset = self.info().filename_offset;
         if self.is_dir() { buf[0] = 1 }
@@ -130,12 +130,12 @@ impl Entry {
         &self,
         filename: P,
         fst: &Vec<Entry>,
-        iso: &mut R,
-        callback: &F
+        mut iso: R,
+        callback: F,
     ) -> io::Result<usize>
         where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
     {
-        self.extract_with_name_and_count(filename, fst, iso, 0, callback)
+        self.extract_with_name_and_count(filename, fst, &mut iso, 0, &callback)
     }
 
     pub fn extract_with_name_and_count<P, R, F>(
@@ -144,7 +144,7 @@ impl Entry {
         fst: &Vec<Entry>,
         iso: &mut R,
         start_count: usize,
-        callback: &F
+        callback: &F,
     ) -> io::Result<usize>
         where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
     {
@@ -174,8 +174,8 @@ impl Entry {
 
     pub fn read_filename<R: BufRead + Seek>(
         &mut self,
-        reader: &mut R,
-        str_tbl_addr: u64
+        mut reader: R,
+        str_tbl_addr: u64,
     ) -> io::Result<()> {
         let info = self.info_mut();
         if info.index == 0 {
@@ -236,7 +236,7 @@ impl Entry {
 
 impl FileEntry {
     // TODO: rename this
-    pub fn extract<R, W>(&self, reader: &mut R, file: &mut W) -> io::Result<()>
+    pub fn extract<R, W>(&self, mut reader: R, file: W) -> io::Result<()>
         where R: BufRead + Seek, W: Write
     {
         reader.seek(SeekFrom::Start(self.file_offset))?;

@@ -1,10 +1,10 @@
-use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 use std::borrow::Cow;
 
 use byteorder::{ReadBytesExt, BigEndian};
 
 use layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
-use ::{align_to, extract_section, ReadSeek};
+use ::{align_to, extract_section};
 
 pub const APPLOADER_OFFSET: u64 = 0x2440;
 const APPLOADER_DATE_SIZE: usize = 0x0A;
@@ -21,7 +21,8 @@ pub struct Apploader {
 }
 
 impl Apploader {
-    pub fn new<R: Read + Seek>(reader: &mut R, offset: u64) -> io::Result<Apploader> {
+    pub fn new<R: Read + Seek>(mut reader: R, offset: u64) -> io::Result<Apploader> {
+        let reader = &mut reader;
         reader.seek(SeekFrom::Start(offset))?;
         let mut date = String::new();
         reader.take(APPLOADER_DATE_SIZE as u64).read_to_string(&mut date)?;
@@ -45,9 +46,7 @@ impl Apploader {
         align_to((self.code_size + self.trailer_size) as u64, 32) as usize
     }
 
-    pub fn extract<R, W>(iso: &mut R, file: &mut W) -> io::Result<()>
-        where R: Read + Seek, W: Write
-    {
+    pub fn extract<R: Read + Seek>(mut iso: R, file: impl Write) -> io::Result<()> {
         iso.seek(SeekFrom::Start(APPLOADER_SIZE_ADDR))?;
         let code_size = iso.read_u32::<BigEndian>()? as u64;
         let trailer_size = iso.read_u32::<BigEndian>()? as u64;
@@ -88,10 +87,14 @@ impl<'a> UniqueLayoutSection<'a> for Apploader {
         UniqueSectionType::Apploader
     }
 
-    fn with_offset(
-        file: &mut BufReader<impl ReadSeek>,
+    fn with_offset<R>(
+        file: R,
         offset: u64,
-    ) -> io::Result<Apploader> {
+    ) -> io::Result<Apploader>
+    where
+        Self: Sized,
+        R: BufRead + Seek,
+    {
         Apploader::new(file, offset)
     }
 }

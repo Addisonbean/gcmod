@@ -1,6 +1,6 @@
 pub mod entry;
 
-use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::fs::{File, read_dir};
 use std::ffi::OsStr;
@@ -13,7 +13,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 use self::entry::{DirectoryEntry, Entry, EntryInfo, FileEntry, ENTRY_SIZE};
 use apploader::APPLOADER_OFFSET;
 use layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
-use ::{align, extract_section, ReadSeek};
+use ::{align, extract_section};
 
 pub const FST_OFFSET_OFFSET: u64 = 0x0424; 
 pub const FST_SIZE_OFFSET: u64 = 0x0428;
@@ -41,9 +41,10 @@ pub struct FST {
 }
 
 impl FST {
-    pub fn new<R>(iso: &mut R, offset: u64) -> io::Result<FST>
+    pub fn new<R>(mut iso: R, offset: u64) -> io::Result<FST>
         where R: BufRead + Seek
     {
+        let mut iso = &mut iso;
         iso.seek(SeekFrom::Start(offset))?;
 
         let mut entry_buffer: [u8; ENTRY_SIZE] = [0; ENTRY_SIZE];
@@ -92,7 +93,7 @@ impl FST {
 
         let mut end = 0;
         for e in entries.iter_mut() {
-            e.read_filename(iso, str_tbl_addr)?;
+            e.read_filename(&mut iso, str_tbl_addr)?;
 
             let curr_end = iso.seek(SeekFrom::Current(0))?;
             end = max(curr_end, end);
@@ -123,8 +124,8 @@ impl FST {
     pub fn extract_filesystem<P, R, F>(
         &mut self, 
         path: P, 
-        iso: &mut R, 
-        callback: &F
+        iso: R, 
+        callback: F,
     ) -> io::Result<usize>
         where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
     {
@@ -132,9 +133,9 @@ impl FST {
     }
 
     pub fn extract<R, W>(
-        iso: &mut R,
-        file: &mut W,
-        fst_offset: u64
+        mut iso: R,
+        file: W,
+        fst_offset: u64,
     ) -> io::Result<()>
         where R: Read + Seek, W: Write
     {
@@ -263,16 +264,16 @@ impl FST {
         Ok(())
     }
 
-    pub fn write<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
         let mut sorted_names = BTreeMap::new();
         for e in &self.entries {
-            e.write(writer)?;
+            e.write(&mut writer)?;
             sorted_names.insert(e.info().filename_offset, &e.info().name);
         }
         let null_byte = [0];
         for (_, name) in &sorted_names {
-            writer.write(name.as_bytes())?;
-            writer.write(&null_byte[..])?;
+            (&mut writer).write(name.as_bytes())?;
+            (&mut writer).write(&null_byte[..])?;
         }
         Ok(())
     }
@@ -355,10 +356,14 @@ impl<'a> UniqueLayoutSection<'a> for FST {
         UniqueSectionType::FST
     }
 
-    fn with_offset(
-        file: &mut BufReader<impl ReadSeek>,
+    fn with_offset<R>(
+        file: R,
         offset: u64,
-    ) -> io::Result<FST> {
+    ) -> io::Result<FST>
+    where
+        Self: Sized,
+        R: BufRead + Seek,
+    {
         FST::new(file, offset)
     }
 }

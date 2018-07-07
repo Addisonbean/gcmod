@@ -3,7 +3,7 @@ extern crate byteorder;
 extern crate lazy_static;
 extern crate regex;
 
-use std::io::{self, Read, Seek, Write};
+use std::io::{self, Read, Write};
 use std::cmp::min;
 
 mod game;
@@ -23,16 +23,10 @@ pub const WRITE_CHUNK_SIZE: usize = 1048576;
 // 32KiB
 pub const DEFAULT_ALIGNMENT: u64 = 32 * 1024; 
 
-pub trait ReadSeek: Read + Seek {}
-impl<T> ReadSeek for T where T: Read + Seek {}
-
 pub fn extract_section(
-    // This doesn't really need ReadSeek, only Read, but there isn't
-    // a good way to upcast traits to other traits in Rust at the moment
-    // so this'll work for now I guess...
-    iso: &mut ReadSeek,
+    mut iso: impl Read,
     bytes: usize,
-    file: &mut Write,
+    mut file: impl Write,
 ) -> io::Result<()> {
     let mut buf: [u8; WRITE_CHUNK_SIZE] = [0; WRITE_CHUNK_SIZE];
     let mut bytes_left = bytes;
@@ -40,7 +34,7 @@ pub fn extract_section(
     while bytes_left > 0 {
         let bytes_to_read = min(bytes_left, WRITE_CHUNK_SIZE) as u64;
 
-        let bytes_read = iso.take(bytes_to_read).read(&mut buf)?;
+        let bytes_read = (&mut iso).take(bytes_to_read).read(&mut buf)?;
         if bytes_read == 0 { break }
         file.write_all(&buf[..bytes_read])?;
 
