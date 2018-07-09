@@ -1,17 +1,17 @@
-use std::fs::{create_dir, File};
-use std::path::{Path, PathBuf};
-use std::io::{self, BufRead, BufReader, Read, Seek, Write};
-use std::collections::BTreeMap;
-use std::sync::Mutex;
 use std::cmp;
 use std::cmp::Ordering::*;
+use std::collections::BTreeMap;
+use std::fs::{create_dir, File};
+use std::io::{self, BufRead, BufReader, Read, Seek, Write};
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
-use header::{GAME_HEADER_SIZE, Header};
-use apploader::{APPLOADER_OFFSET, Apploader};
+use apploader::{Apploader, APPLOADER_OFFSET};
 use dol::DOLHeader;
 use dol::segment::Segment;
 use fst::FST;
 use fst::entry::{DirectoryEntry, Entry};
+use header::{GAME_HEADER_SIZE, Header};
 use layout_section::{LayoutSection, UniqueLayoutSection, UniqueSectionType};
 use ::{extract_section, WRITE_CHUNK_SIZE};
 
@@ -27,7 +27,10 @@ pub struct Game {
 
 impl Game {
 
-    pub fn open<R: BufRead + Seek>(mut iso: R, offset: u64) -> io::Result<Game> {
+    pub fn open<R>(mut iso: R, offset: u64) -> io::Result<Game>
+    where
+        R: BufRead + Seek,
+    {
         let header = Header::new(&mut iso, offset)?;
         let apploader = Apploader::new(&mut iso, offset + APPLOADER_OFFSET)?;
         let dol = DOLHeader::new(&mut iso, offset + header.dol_offset)?;
@@ -61,7 +64,6 @@ impl Game {
         }
 
         layout.push(&self.fst);
-        // layout.push(self.fst.string_table_layout_section());
 
         for f in self.fst.entries.iter().filter_map(|e| e.as_file()) {
             layout.push(f);
@@ -72,11 +74,11 @@ impl Game {
         ROMLayout(layout)
     }
 
-    pub fn extract<R: BufRead + Seek, P: AsRef<Path>>(
-        &mut self,
-        mut iso: R,
-        path: P,
-    ) -> io::Result<()> {
+    pub fn extract<R, P>(&mut self, mut iso: R, path: P) -> io::Result<()>
+    where
+        R: BufRead + Seek,
+        P: AsRef<Path>,
+    {
         // Not using `create_dir_all` here so it fails if `path` already exists.
         create_dir(path.as_ref())?;
         let sys_data_path = path.as_ref().join("&&systemdata");
@@ -100,11 +102,11 @@ impl Game {
         Ok(())
     }
 
-    pub fn extract_files<P: AsRef<Path>, R: BufRead + Seek>(
-        &mut self,
-        iso: R,
-        path: P,
-    ) -> io::Result<usize> {
+    pub fn extract_files<R, P>(&mut self, iso: R, path: P) -> io::Result<usize>
+    where
+        R: BufRead + Seek,
+        P: AsRef<Path>,
+    {
         let count = self.fst.file_count;
         let res = self.fst.extract_filesystem(path, iso, |c|
             print!("\r{}/{} files written.", c, count)
@@ -113,44 +115,46 @@ impl Game {
         res
     }
 
-    pub fn extract_game_header<R: Read + Seek, W: Write>(
+    pub fn extract_game_header(
         &mut self,
-        iso: R,
-        file: W,
+        iso: impl Read + Seek,
+        file: impl Write,
     ) -> io::Result<()> {
         println!("Writing game header...");
         Header::extract(iso, file)
     }
 
-    // DOL is the format of the main executable on a GameCube disk
-    pub fn extract_dol<R: Read + Seek, W: Write>(
-        &mut self,
-        iso: R,
-        file: W,
-    ) -> io::Result<()> {
+    pub fn extract_dol<R, W>(&mut self, iso: R, file: W) -> io::Result<()>
+    where
+        R: Read + Seek,
+        W: Write,
+    {
         println!("Writing DOL header...");
         DOLHeader::extract(iso, self.header.dol_offset, file)
     }
 
-    pub fn extract_apploader<R: Read + Seek, W: Write>(
-        &mut self,
-        iso: R,
-        file: W,
-    ) -> io::Result<()> {
+    pub fn extract_apploader<R, W>(&mut self, iso: R, file: W) -> io::Result<()>
+    where
+        R: Read + Seek,
+        W: Write,
+    {
         println!("Writing app loader...");
         Apploader::extract(iso, file)
     }
 
-    pub fn extract_fst<R: Read + Seek, W: Write>(
-        &mut self,
-        iso: R,
-        file: W,
-    ) -> io::Result<()> {
+    pub fn extract_fst<R, W>(&mut self, iso: R, file: W) -> io::Result<()>
+    where
+        R: Read + Seek,
+        W: Write,
+    {
         println!("Writing file system table...");
         FST::extract(iso, file, self.header.fst_offset)
     }
 
-    pub fn get_section_by_type(&self, section_type: &UniqueSectionType) -> &UniqueLayoutSection {
+    pub fn get_section_by_type(
+        &self,
+        section_type: &UniqueSectionType,
+    ) -> &UniqueLayoutSection {
         use layout_section::UniqueSectionType::*;
         match section_type {
             Header => &self.header as &UniqueLayoutSection,
@@ -160,18 +164,39 @@ impl Game {
         }
     }
 
-    pub fn extract_section_with_name<R: BufRead + Seek>(&self, filename: impl AsRef<Path>, output: impl AsRef<Path>, iso: R) -> io::Result<bool> {
+    pub fn extract_section_with_name(
+        &self,
+        filename: impl AsRef<Path>,
+        output: impl AsRef<Path>,
+        iso: impl BufRead + Seek,
+    ) -> io::Result<bool> {
         let output = output.as_ref();
         let filename = &*filename.as_ref().to_string_lossy();
         match filename {
-            "&&systemdata/ISO.hdr" => Header::extract(iso, &mut File::create(output)?).map(|_| true),
-            "&&systemdata/Apploader.ldr" => Apploader::extract(iso, &mut File::create(output)?).map(|_| true),
-            "&&systemdata/Start.dol" => DOLHeader::extract(iso, self.dol.offset, &mut File::create(output)?).map(|_| true),
-            "&&systemdata/Game.toc" => FST::extract(iso, &mut File::create(output)?, self.fst.offset).map(|_| true),
+            "&&systemdata/ISO.hdr" =>
+                Header::extract(iso, &mut File::create(output)?).map(|_| true),
+            "&&systemdata/Apploader.ldr" =>
+                Apploader::extract(iso, &mut File::create(output)?)
+                    .map(|_| true),
+            "&&systemdata/Start.dol" =>
+                DOLHeader::extract(
+                    iso,
+                    self.dol.offset,
+                    &mut File::create(output)?,
+                ).map(|_| true),
+            "&&systemdata/Game.toc" =>
+                FST::extract(iso, &mut File::create(output)?, self.fst.offset)
+                    .map(|_| true),
             _ => {
                 if let Some(e) = self.fst.entry_with_name(filename) {
-                    e.extract_with_name(output, &self.fst.entries, iso, &|_| {}).map(|_| true)
-                } else if let Some((t, n)) = Segment::parse_segment_name(filename) {
+                    e.extract_with_name(
+                        output, &self.fst.entries,
+                        iso,
+                        &|_| {},
+                    ).map(|_| true)
+                } else if let Some((t, n)) =
+                    Segment::parse_segment_name(filename)
+                {
                     if let Some(s) = self.dol.find_segment(t, n) {
                         s.extract(iso, &mut File::create(output)?).map(|_| true)
                     } else {
@@ -206,7 +231,10 @@ impl Game {
             APPLOADER_OFFSET,
             (self.apploader.total_size(), "Apploader.ldr")
         );
-        regions.insert(self.header.dol_offset, (self.dol.dol_size, "Start.dol"));
+        regions.insert(
+            self.header.dol_offset,
+            (self.dol.dol_size, "Start.dol")
+        );
         regions.insert(self.header.fst_offset, (self.fst.size, "Game.toc"));
 
         for (start, &(end, name)) in &regions {
@@ -259,7 +287,10 @@ impl Game {
         write_zeros(ROM_SIZE - bytes_written as usize, &mut output)
     }
 
-    fn make_sections_btree(root: impl AsRef<Path>) -> io::Result<BTreeMap<u64, PathBuf>> {
+    fn make_sections_btree<P>(root: P) -> io::Result<BTreeMap<u64, PathBuf>>
+    where
+        P: AsRef<Path>,
+    {
         let root = root.as_ref();
         let header_path = root.join("&&systemdata/ISO.hdr");
         let fst_path = root.join("&&systemdata/Game.toc");
@@ -310,13 +341,13 @@ fn fill_files_btree(
 ) {
     for entry in dir.iter_contents(&fst.entries) {
         match entry {
-            &Entry::File(ref file) => {
+            Entry::File(ref file) => {
                 files.insert(
                     file.file_offset,
                     prefix.as_ref().join(&file.info.name)
                 );
             },
-            &Entry::Directory(ref sub_dir) => {
+            Entry::Directory(ref sub_dir) => {
                 fill_files_btree(
                     files,
                     sub_dir,
@@ -331,7 +362,6 @@ fn fill_files_btree(
 pub struct ROMLayout<'a>(Vec<&'a LayoutSection<'a>>);
 
 impl<'a> ROMLayout<'a> {
-    // pub fn find_offset(&self, offset: u64) -> Option<&LayoutSection> {
     pub fn find_offset(&'a self, offset: u64) -> Option<&'a LayoutSection<'a>> {
         // I don't use `Iterator::find` here because I can't break early once
         // a section is passed that has a greater starting offset than `offset`

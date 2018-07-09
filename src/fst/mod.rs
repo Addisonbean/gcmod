@@ -1,19 +1,25 @@
 pub mod entry;
 
-use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
-use std::path::{Path, PathBuf};
-use std::fs::{File, read_dir};
-use std::ffi::OsStr;
-use std::collections::BTreeMap;
 use std::borrow::Cow;
 use std::cmp::max;
+use std::collections::BTreeMap;
+use std::ffi::OsStr;
+use std::fs::{File, read_dir};
+use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
 
 use byteorder::{BigEndian, ReadBytesExt};
 
-use self::entry::{DirectoryEntry, Entry, EntryInfo, FileEntry, ENTRY_SIZE};
 use apploader::APPLOADER_OFFSET;
-use layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
+use layout_section::{
+    LayoutSection,
+    SectionType,
+    UniqueLayoutSection,
+    UniqueSectionType
+};
 use ::{align, extract_section};
+
+use self::entry::{DirectoryEntry, Entry, EntryInfo, ENTRY_SIZE, FileEntry};
 
 pub const FST_OFFSET_OFFSET: u64 = 0x0424; 
 pub const FST_SIZE_OFFSET: u64 = 0x0428;
@@ -41,9 +47,7 @@ pub struct FST {
 }
 
 impl FST {
-    pub fn new<R>(mut iso: R, offset: u64) -> io::Result<FST>
-        where R: BufRead + Seek
-    {
+    pub fn new(mut iso: impl BufRead + Seek, offset: u64) -> io::Result<FST> {
         let mut iso = &mut iso;
         iso.seek(SeekFrom::Start(offset))?;
 
@@ -81,7 +85,6 @@ impl FST {
                     total_file_system_size += f.size;
                 },
                 Entry::Directory(d) => {
-                    // parent_dirs.push((index, d.next_index - index - 1));
                     parents.push((index, d.next_index));
                 },
             }
@@ -121,24 +124,20 @@ impl FST {
         self.entries[0].as_dir().unwrap()
     }
 
-    pub fn extract_filesystem<P, R, F>(
+    pub fn extract_filesystem(
         &mut self, 
-        path: P, 
-        iso: R, 
-        callback: F,
-    ) -> io::Result<usize>
-        where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
-    {
+        path: impl AsRef<Path>,
+        iso: impl BufRead + Seek,
+        callback: impl Fn(usize),
+    ) -> io::Result<usize> {
         self.entries[0].extract_with_name(path, &self.entries, iso, callback)
     }
 
-    pub fn extract<R, W>(
-        mut iso: R,
-        file: W,
+    pub fn extract(
+        mut iso: impl Read + Seek,
+        file: impl Write,
         fst_offset: u64,
-    ) -> io::Result<()>
-        where R: Read + Seek, W: Write
-    {
+    ) -> io::Result<()> {
         iso.seek(SeekFrom::Start(FST_SIZE_OFFSET))?;
         let size = iso.read_u32::<BigEndian>()? as usize;
 
@@ -146,7 +145,7 @@ impl FST {
         extract_section(iso, size, file)
     }
 
-    pub fn rebuild<P: AsRef<Path>>(root_path: P) -> io::Result<FST> {
+    pub fn rebuild(root_path: impl AsRef<Path>) -> io::Result<FST> {
         let ldr_path = root_path.as_ref().join("&&systemdata/Apploader.ldr");
         let appldr_size = File::open(ldr_path)?.metadata()?.len();
 
@@ -181,9 +180,11 @@ impl FST {
 
         FST::rebuild_dir_info(root_path.as_ref(), &mut rb_info)?;
 
-        rb_info.entries[0].as_dir_mut().unwrap().next_index = rb_info.entries.len();
+        rb_info.entries[0].as_dir_mut().unwrap().next_index =
+            rb_info.entries.len();
 
-        let size = rb_info.entries.len() * 12 + rb_info.filename_offset as usize;
+        let size = 
+            rb_info.entries.len() * 12 + rb_info.filename_offset as usize;
         let total_file_system_size = rb_info.file_offset as usize;
 
         let offset = align(APPLOADER_OFFSET + appldr_size as u64);
@@ -207,15 +208,20 @@ impl FST {
     // this needs to be documented, specifically how rb_info is being used
     // it's also a mess...
     fn rebuild_dir_info<P>(path: P, rb_info: &mut RebuildInfo) -> io::Result<()>
-        where P: AsRef<Path>
+    where
+        P: AsRef<Path>,
     {
         for e in read_dir(path.as_ref())? {
             let e = e?;
 
             // TODO: don't keep calling e.file_name(), store it somewhere
 
-            if e.file_name().to_str().map(|s| s.starts_with(".")).unwrap_or(false) ||
-               e.file_name().to_str() == Some("&&systemdata") { continue }
+            if e.file_name().to_str().map(|s| s.starts_with("."))
+                .unwrap_or(false)
+                || e.file_name().to_str() == Some("&&systemdata")
+            {
+                continue
+            }
 
             let mut full_path = rb_info.current_path.clone();
             full_path.push(e.file_name());
@@ -249,14 +255,16 @@ impl FST {
 
                 rb_info.parent_index = old_index;
                 rb_info.current_path.pop();
-                rb_info.entries[index].as_dir_mut().unwrap().next_index += rb_info.entries.len() - count_before;
+                rb_info.entries[index].as_dir_mut().unwrap().next_index +=
+                    rb_info.entries.len() - count_before;
             } else {
                 let entry = Entry::File(FileEntry {
                     info,
                     file_offset: rb_info.file_offset,
                     size: e.metadata()?.len() as usize,
                 });
-                rb_info.file_offset += align(entry.as_file().unwrap().size as u64);
+                rb_info.file_offset +=
+                    align(entry.as_file().unwrap().size as u64);
                 rb_info.file_count += 1;
                 rb_info.entries.push(entry);
             }
@@ -264,7 +272,7 @@ impl FST {
         Ok(())
     }
 
-    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+    pub fn write(&self, mut writer: impl Write) -> io::Result<()> {
         let mut sorted_names = BTreeMap::new();
         for e in &self.entries {
             e.write(&mut writer)?;
@@ -295,7 +303,9 @@ impl FST {
             }
         }
 
-        if name == Path::new(&entry.info().full_path.strip_prefix("/").unwrap()) {
+        if name == Path::new(
+            &entry.info().full_path.strip_prefix("/").unwrap()
+        ) {
             Some(entry)
         } else {
             None
@@ -346,7 +356,10 @@ impl<'a> LayoutSection<'a> for FST {
         println!("Offset: {}", self.offset);
         println!("Total entries: {}", self.entries.len());
         println!("Total files: {}", self.file_count);
-        println!("Total space used by files: {} bytes", self.total_file_system_size);
+        println!(
+            "Total space used by files: {} bytes",
+            self.total_file_system_size
+        );
         println!("Size: {} bytes", self.size);
     }
 }
@@ -356,10 +369,7 @@ impl<'a> UniqueLayoutSection<'a> for FST {
         UniqueSectionType::FST
     }
 
-    fn with_offset<R>(
-        file: R,
-        offset: u64,
-    ) -> io::Result<FST>
+    fn with_offset<R>(file: R, offset: u64) -> io::Result<FST>
     where
         Self: Sized,
         R: BufRead + Seek,

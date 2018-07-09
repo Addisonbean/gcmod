@@ -1,16 +1,16 @@
-extern crate gcmod;
 extern crate clap;
+extern crate gcmod;
 extern crate tempfile;
 
-use std::path::{Path, PathBuf};
-use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::fs::File;
+use std::io::{BufReader, Seek, SeekFrom};
+use std::path::{Path, PathBuf};
 
 use clap::{App, Arg, SubCommand, AppSettings};
 
 use gcmod::{Game, ROM_SIZE};
-use gcmod::dol::DOLHeader;
 use gcmod::disassembler::Disassembler;
+use gcmod::dol::DOLHeader;
 use gcmod::layout_section::UniqueSectionType;
 
 fn main() {
@@ -84,7 +84,11 @@ fn main() {
     }
 }
 
-fn extract_iso(input: impl AsRef<Path>, output: impl AsRef<Path>, file_in_iso: Option<impl AsRef<Path>>) {
+fn extract_iso(
+    input: impl AsRef<Path>,
+    output: impl AsRef<Path>,
+    file_in_iso: Option<impl AsRef<Path>>,
+) {
     if let Some(file) = file_in_iso {
         extract_section(input.as_ref(), file.as_ref(), output.as_ref());
         return;
@@ -107,7 +111,10 @@ fn print_iso_info(input: impl AsRef<Path>, offset: u64) {
 }
 
 // is this a bit much for main.rs? Move it to disassembler.rs?
-fn disassemble_dol(input: impl AsRef<Path>, objdump_path: Option<impl AsRef<Path>>) {
+fn disassemble_dol(
+    input: impl AsRef<Path>,
+    objdump_path: Option<impl AsRef<Path>>
+) {
     try_to_open_game(input.as_ref(), 0).map(|(mut game, mut iso)| {
         let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
         if let Err(_) = game.extract_dol(&mut iso, tmp_file.as_mut()) {
@@ -118,13 +125,14 @@ fn disassemble_dol(input: impl AsRef<Path>, objdump_path: Option<impl AsRef<Path
             .expect("Failed to read header.");
         let objdump_path = objdump_path
             .map_or(PathBuf::from("objdump"), |p| p.as_ref().to_path_buf());
-        let disassembler = match Disassembler::objdump_path(objdump_path.as_os_str()) {
-            Ok(d) => d,
-            Err(_) => {
-                eprintln!("GNU objdump required.");
-                return;
-            },
-        };
+        let disassembler =
+            match Disassembler::objdump_path(objdump_path.as_os_str()) {
+                Ok(d) => d,
+                Err(_) => {
+                    eprintln!("GNU objdump required.");
+                    return;
+                },
+            };
 
         // TODO: remove the redundancy here
         let mut addr = 0;
@@ -166,15 +174,24 @@ fn disassemble_dol(input: impl AsRef<Path>, objdump_path: Option<impl AsRef<Path
     });
 }
 
-fn rebuild_iso(root_path: impl AsRef<Path>, iso_path: impl AsRef<Path>, rebuild_systemdata: bool) {
+fn rebuild_iso(
+    root_path: impl AsRef<Path>,
+    iso_path: impl AsRef<Path>,
+    rebuild_systemdata: bool,
+) {
     let mut iso = File::create(iso_path.as_ref()).unwrap(); 
-    if let Err(e) = Game::rebuild(root_path.as_ref(), &mut iso, rebuild_systemdata) {
+    if let Err(e) =
+        Game::rebuild(root_path.as_ref(), &mut iso, rebuild_systemdata)
+    {
         eprintln!("Couldn't rebuild iso.");
         eprintln!("{:?}", e);
     }
 }
 
-fn get_info(path: impl AsRef<Path>, section: Option<&str>, offset: Option<&str>) {
+fn get_info<P>(path: P, section: Option<&str>, offset: Option<&str>)
+where
+    P: AsRef<Path>,
+{
     use gcmod::layout_section::UniqueSectionType::*;
 
     if let Some(offset) = offset {
@@ -192,7 +209,10 @@ fn get_info(path: impl AsRef<Path>, section: Option<&str>, offset: Option<&str>)
     }
 }
 
-fn print_section_info(path: impl AsRef<Path>, section_type: &UniqueSectionType) {
+fn print_section_info<P>(path: P, section_type: &UniqueSectionType)
+where
+    P: AsRef<Path>,
+{
     let mut f = match File::open(path.as_ref()) {
         Ok(f) => BufReader::new(f),
         Err(_) => {
@@ -224,7 +244,10 @@ fn find_offset(header_path: impl AsRef<Path>, offset: &str) {
     let offset = match offset.parse::<u64>() {
         Ok(o) if (o as usize) < ROM_SIZE => o,
         _ => {
-            eprintln!("Invalid offset. Offset must be a number > 0 and < {}", ROM_SIZE);
+            eprintln!(
+                "Invalid offset. Offset must be a number > 0 and < {}",
+                ROM_SIZE
+            );
             return;
         },
     };
@@ -244,20 +267,29 @@ fn find_offset(header_path: impl AsRef<Path>, offset: &str) {
     });
 }
 
-fn extract_section(iso_path: impl AsRef<Path>, section_filename: impl AsRef<Path>, output: impl AsRef<Path>) {
+fn extract_section(
+    iso_path: impl AsRef<Path>,
+    section_filename: impl AsRef<Path>,
+    output: impl AsRef<Path>,
+) {
     try_to_open_game(iso_path.as_ref(), 0).map(|(game, mut iso)| {
-        match game.extract_section_with_name(section_filename, output.as_ref(), &mut iso) {
-            Ok(true) => (),
+        let result = game.extract_section_with_name(
+            section_filename,
+            output.as_ref(),
+            &mut iso,
+        );
+        match result {
+            Ok(true) => {},
             Ok(false) => eprintln!("Couldn't find a section with that name."),
             Err(_) => eprintln!("Error extracting section."),
         }
     });
 }
 
-fn try_to_open_game(
-    path: impl AsRef<Path>,
-    offset: u64,
-) -> Option<(Game, BufReader<impl Read + Seek>)> {
+fn try_to_open_game<P>(path: P, offset: u64) -> Option<(Game, BufReader<File>)>
+where
+    P: AsRef<Path>,
+{
     let path = path.as_ref();
     if !path.exists() {
         eprintln!("Error: the iso {} doesn't exist.", path.display());

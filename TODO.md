@@ -4,8 +4,10 @@
 
 * Make the section names in `gcmod extract -s` more intuitive
 * Fix the style to be consistent with the official Rust style guide
-	* Find missing trailing commas
+	* Check it with Rust fmt
+	* Find a better way to use clap, try the macros
 * Add a way to install it (then add that to the readme)
+* Explain Rust style guidelines (basic it's the official guidelines except for matches and explain how to break function signatures)
 * Make the info command give more useful info, and less useless info (plus add verbosity levels with -v, -vv, and so on...)
 * LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc...
 * Have segments create their segment name in new, then make LayoutSection.name return a &str

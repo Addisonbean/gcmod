@@ -1,13 +1,12 @@
-use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
+use std::borrow::Cow;
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::cmp::Ordering::*;
-use std::borrow::Cow;
+use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 
-use header::Header;
 use apploader::Apploader;
 use dol::DOLHeader;
 use fst::FST;
-
+use header::Header;
 use ::extract_section;
 
 pub trait LayoutSection<'a> {
@@ -81,10 +80,7 @@ impl<'a> Ord for LayoutSection<'a> {
 pub trait UniqueLayoutSection<'a>: LayoutSection<'a> {
     fn section_type(&self) -> UniqueSectionType;
 
-    fn with_offset<R>(
-        file: R,
-        offset: u64,
-    ) -> io::Result<Self>
+    fn with_offset<R>(file: R, offset: u64) -> io::Result<Self>
     where
         Self: Sized,
         R: BufRead + Seek;
@@ -133,14 +129,13 @@ impl UniqueSectionType {
         }
     }
 
-    pub fn with_offset<R>(
+    pub fn with_offset(
         &self,
-        // file: impl BufRead,
-        file: R,
+        file: impl BufRead + Seek,
         offset: u64,
     ) -> io::Result<Box<UniqueLayoutSection>>
-        where Self: Sized,
-              R: BufRead + Seek,
+    where
+        Self: Sized,
     {
         use self::UniqueSectionType as ST;
         match self {

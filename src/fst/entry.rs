@@ -1,9 +1,9 @@
-use std::io::{self, BufRead, Seek, SeekFrom, Write};
-use std::fs::{File, create_dir_all};
-use std::path::{Path, PathBuf};
 use std::borrow::Cow;
+use std::fs::{create_dir_all, File};
+use std::io::{self, BufRead, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
 
-use byteorder::{ReadBytesExt, BigEndian};
+use byteorder::{BigEndian, ReadBytesExt};
 
 use layout_section::{LayoutSection, SectionType};
 use ::extract_section;
@@ -60,7 +60,7 @@ impl Entry {
     pub fn new(
         entry: &[u8],
         index: usize,
-        directory_index: Option<usize>
+        directory_index: Option<usize>,
     ) -> Option<Entry> {
         // TODO: don't use unwrap when this is implemented
         // https://github.com/rust-lang/rfcs/issues/935
@@ -94,15 +94,16 @@ impl Entry {
         })
     }
 
-    pub fn write<W: Write>(&self, mut output: W) -> io::Result<()> {
+    pub fn write(&self, mut output: impl Write) -> io::Result<()> {
         let mut buf = [0; ENTRY_SIZE];
         let name_offset = self.info().filename_offset;
         if self.is_dir() { buf[0] = 1 }
         write_int_to_buffer(name_offset, &mut buf[1..4]);
 
         let (f2, f3) = match self {
-            &Entry::File(ref e) => (e.file_offset, e.size as u64),
-            &Entry::Directory(ref e) => (e.parent_index as u64, e.next_index as u64),
+            Entry::File(ref e) => (e.file_offset, e.size as u64),
+            Entry::Directory(ref e) =>
+                (e.parent_index as u64, e.next_index as u64),
         };
 
         write_int_to_buffer(f2, &mut buf[4..8]);
@@ -113,44 +114,40 @@ impl Entry {
 
     pub fn info(&self) -> &EntryInfo {
         match self {
-            &Entry::File(ref e) => &e.info,
-            &Entry::Directory(ref e) => &e.info,
+            Entry::File(ref e) => &e.info,
+            Entry::Directory(ref e) => &e.info,
         }
     }
 
     pub fn info_mut(&mut self) -> &mut EntryInfo {
         match self {
-            &mut Entry::File(ref mut e) => &mut e.info,
-            &mut Entry::Directory(ref mut e) => &mut e.info,
+            Entry::File(ref mut e) => &mut e.info,
+            Entry::Directory(ref mut e) => &mut e.info,
         }
     }
 
     // move to Game?
-    pub fn extract_with_name<P, R, F>(
+    pub fn extract_with_name(
         &self,
-        filename: P,
-        fst: &Vec<Entry>,
-        mut iso: R,
-        callback: F,
-    ) -> io::Result<usize>
-        where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
-    {
-        self.extract_with_name_and_count(filename, fst, &mut iso, 0, &callback)
+        filename: impl AsRef<Path>,
+        fst: &[Entry],
+        mut iso: impl BufRead + Seek,
+        mut callback: impl FnMut(usize),
+    ) -> io::Result<usize> {
+        self.extract_with_name_and_count(filename, fst, &mut iso, 0, &mut callback)
     }
 
-    pub fn extract_with_name_and_count<P, R, F>(
+    pub fn extract_with_name_and_count(
         &self,
-        filename: P,
-        fst: &Vec<Entry>,
-        iso: &mut R,
+        filename: impl AsRef<Path>,
+        fst: &[Entry],
+        iso: &mut (impl BufRead + Seek),
         start_count: usize,
-        callback: &F,
-    ) -> io::Result<usize>
-        where P: AsRef<Path>, R: BufRead + Seek, F: Fn(usize)
-    {
+        callback: &mut impl FnMut(usize),
+    ) -> io::Result<usize> {
         let mut count = start_count;
         match self {
-            &Entry::Directory(ref d) => {
+            Entry::Directory(ref d) => {
                 create_dir_all(filename.as_ref())?;
                 for e in d.iter_contents(fst) {
                     count += e.extract_with_name_and_count(
@@ -162,7 +159,7 @@ impl Entry {
                     )?;
                 }
             },
-            &Entry::File(ref f) => {
+            Entry::File(ref f) => {
                 let mut out = File::create(filename)?;
                 f.extract(iso, &mut out)?;
                 count += 1;
@@ -172,9 +169,9 @@ impl Entry {
         Ok(count - start_count)
     }
 
-    pub fn read_filename<R: BufRead + Seek>(
+    pub fn read_filename(
         &mut self,
-        mut reader: R,
+        mut reader: impl BufRead + Seek,
         str_tbl_addr: u64,
     ) -> io::Result<()> {
         let info = self.info_mut();
@@ -182,7 +179,6 @@ impl Entry {
             info.name = "/".to_owned();
         } else {
             reader.seek(SeekFrom::Start(str_tbl_addr + info.filename_offset))?;
-            // unsafe because the bytes read aren't guaranteed to be UTF-8
             unsafe {
                 let mut bytes = info.name.as_mut_vec();
                 reader.read_until(0, &mut bytes)?;
@@ -202,7 +198,7 @@ impl Entry {
     }
 
     pub fn as_file(&self) -> Option<&FileEntry> {
-        if let &Entry::File(ref f) = self {
+        if let Entry::File(ref f) = self {
             Some(f)
         } else {
             None
@@ -210,7 +206,7 @@ impl Entry {
     }
 
     pub fn as_dir_mut(&mut self) -> Option<&mut DirectoryEntry> {
-        if let &mut Entry::Directory(ref mut dir) = self {
+        if let Entry::Directory(ref mut dir) = self {
             Some(dir)
         } else {
             None
@@ -218,7 +214,7 @@ impl Entry {
     }
 
     pub fn as_file_mut(&mut self) -> Option<&mut FileEntry> {
-        if let &mut Entry::File(ref mut f) = self {
+        if let Entry::File(ref mut f) = self {
             Some(f)
         } else {
             None
@@ -237,7 +233,9 @@ impl Entry {
 impl FileEntry {
     // TODO: rename this
     pub fn extract<R, W>(&self, mut reader: R, file: W) -> io::Result<()>
-        where R: BufRead + Seek, W: Write
+    where
+        R: BufRead + Seek,
+        W: Write,
     {
         reader.seek(SeekFrom::Start(self.file_offset))?;
         extract_section(reader, self.size, file)
@@ -245,22 +243,19 @@ impl FileEntry {
 }
 
 impl DirectoryEntry {
-    pub fn iter_contents<'a>(
-        &'a self,
-        fst: &'a Vec<Entry>
-    ) -> DirectoryIter<'a> {
+    pub fn iter_contents<'a>(&'a self, fst: &'a [Entry]) -> DirectoryIter<'a> {
         DirectoryIter::new(self, fst)
     }
 }
 
 pub struct DirectoryIter<'a> {
     dir: &'a DirectoryEntry,
-    fst: &'a Vec<Entry>,
+    fst: &'a [Entry],
     current_index: usize,
 }
 
 impl<'a> DirectoryIter<'a> {
-    fn new(dir: &'a DirectoryEntry, fst: &'a Vec<Entry>) -> DirectoryIter<'a> {
+    fn new(dir: &'a DirectoryEntry, fst: &'a [Entry]) -> DirectoryIter<'a> {
         DirectoryIter {
             dir,
             fst,
@@ -276,8 +271,8 @@ impl<'a> Iterator for DirectoryIter<'a> {
         if self.current_index < self.dir.next_index {
             let res = &self.fst[self.current_index];
             let step = match res {
-                &Entry::File(..) => 1,
-                &Entry::Directory(ref d) => d.next_index - self.current_index,
+                Entry::File(_) => 1,
+                Entry::Directory(ref d) => d.next_index - self.current_index,
             };
             self.current_index += step;
             Some(res)

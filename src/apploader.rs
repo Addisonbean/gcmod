@@ -1,9 +1,14 @@
-use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 use std::borrow::Cow;
+use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 
-use byteorder::{ReadBytesExt, BigEndian};
+use byteorder::{BigEndian, ReadBytesExt};
 
-use layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
+use layout_section::{
+    LayoutSection,
+    SectionType,
+    UniqueLayoutSection,
+    UniqueSectionType,
+};
 use ::{align_to, extract_section};
 
 pub const APPLOADER_OFFSET: u64 = 0x2440;
@@ -21,7 +26,10 @@ pub struct Apploader {
 }
 
 impl Apploader {
-    pub fn new<R: Read + Seek>(mut reader: R, offset: u64) -> io::Result<Apploader> {
+    pub fn new<R>(mut reader: R, offset: u64) -> io::Result<Apploader>
+    where
+        R: Read + Seek,
+    {
         let reader = &mut reader;
         reader.seek(SeekFrom::Start(offset))?;
         let mut date = String::new();
@@ -46,12 +54,18 @@ impl Apploader {
         align_to((self.code_size + self.trailer_size) as u64, 32) as usize
     }
 
-    pub fn extract<R: Read + Seek>(mut iso: R, file: impl Write) -> io::Result<()> {
+    pub fn extract<R, W>(mut iso: R, file: W) -> io::Result<()>
+    where
+        R: Read + Seek,
+        W: Write,
+    {
         iso.seek(SeekFrom::Start(APPLOADER_SIZE_ADDR))?;
         let code_size = iso.read_u32::<BigEndian>()? as u64;
         let trailer_size = iso.read_u32::<BigEndian>()? as u64;
         iso.seek(SeekFrom::Start(APPLOADER_OFFSET))?;
-        extract_section(iso, align_to(code_size + trailer_size, 32) as usize, file)
+
+        let aligned_size = align_to(code_size + trailer_size, 32);
+        extract_section(iso, aligned_size as usize, file)
     }
 }
 
@@ -78,7 +92,10 @@ impl<'a> LayoutSection<'a> for Apploader {
         println!("Code size: {} bytes", self.code_size);
         println!("Trailer size: {} bytes", self.trailer_size);
         println!("Entry point: not yet implemented");
-        println!("Size (including code and trailer, aligned to 32 bytes): {}", self.total_size());
+        println!(
+            "Size (including code and trailer, aligned to 32 bytes): {}",
+            self.total_size(),
+        );
     }
 }
 
@@ -87,10 +104,7 @@ impl<'a> UniqueLayoutSection<'a> for Apploader {
         UniqueSectionType::Apploader
     }
 
-    fn with_offset<R>(
-        file: R,
-        offset: u64,
-    ) -> io::Result<Apploader>
+    fn with_offset<R>(file: R, offset: u64) -> io::Result<Apploader>
     where
         Self: Sized,
         R: BufRead + Seek,

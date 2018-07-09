@@ -1,15 +1,15 @@
-use std::io::{self, BufReader, BufRead, Read, Seek, SeekFrom, Write};
-use std::fs::File;
-use std::path::Path;
-use std::borrow::Cow;
-
 // This chapter of yagcd was invaluable to working on this file:
 // http://hitmen.c02.at/files/yagcd/yagcd/chap13.html
 
+use std::borrow::Cow;
+use std::fs::File;
+use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
+use std::path::Path;
+
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-use fst::FST;
 use apploader::APPLOADER_OFFSET;
+use fst::FST;
 use layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
 use ::{align, extract_section};
 
@@ -91,7 +91,10 @@ pub struct HeaderInformation {
 }
 
 impl HeaderInformation {
-    pub fn new<R: Read + Seek>(mut file: R, offset: u64) -> io::Result<HeaderInformation> {
+    pub fn new<R>(mut file: R, offset: u64) -> io::Result<HeaderInformation>
+    where
+        R: Read + Seek,
+    {
         file.seek(SeekFrom::Start(offset as u64))?;
         Ok(HeaderInformation {
             debug_monitor_size: file.read_u32::<BigEndian>()?,
@@ -105,7 +108,7 @@ impl HeaderInformation {
         })
     }
 
-    pub fn write<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+    pub fn write(&self, mut writer: impl Write) -> io::Result<()> {
         writer.write_u32::<BigEndian>(self.debug_monitor_size)?;
         writer.write_u32::<BigEndian>(self.simulated_memory_size)?;
         writer.write_u32::<BigEndian>(self.argument_offset)?;
@@ -119,8 +122,10 @@ impl HeaderInformation {
 }
 
 impl Header {
-    // pub fn new<R: BufRead + Seek>(file: &mut R, offset: u64) -> io::Result<Header> {
-    pub fn new<R: BufRead + Seek>(mut file: R, offset: u64) -> io::Result<Header> {
+    pub fn new<R>(mut file: R, offset: u64) -> io::Result<Header>
+    where
+        R: BufRead + Seek,
+    {
         file.seek(SeekFrom::Start(offset as u64))?;
         let mut game_code = String::with_capacity(GAME_CODE_SIZE);
         file.by_ref().take(GAME_CODE_SIZE as u64)
@@ -145,17 +150,21 @@ impl Header {
         }
 
         let mut title = Vec::with_capacity(GAME_NAME_SIZE);
-        let bytes_read = file.by_ref().take(GAME_NAME_SIZE as u64).read_until(0, &mut title)?;
+        let bytes_read = file.by_ref().take(GAME_NAME_SIZE as u64)
+            .read_until(0, &mut title)?;
+
         if title.last() == Some(&0) {
             let last_index = title.len() - 1;
             title.remove(last_index);
         }
         let title = String::from_utf8(title).map_err(|_| io::Error::new(
             io::ErrorKind::InvalidData,
-            "ROM Title was not valid UTF-8"
+            "ROM Title was not valid UTF-8",
         ))?;
 
-        file.seek(SeekFrom::Current(GAME_NAME_SIZE as i64 - bytes_read as i64))?;
+        file.seek(
+            SeekFrom::Current(GAME_NAME_SIZE as i64 - bytes_read as i64)
+        )?;
 
         let debug_monitor_offset = file.read_u32::<BigEndian>()?;
         let debug_monitor_load_addr = file.read_u32::<BigEndian>()?;
@@ -197,12 +206,16 @@ impl Header {
         })
     }
 
-    pub fn extract<R: Read + Seek, W: Write>(mut iso: R, output: W) -> io::Result<()> {
+    pub fn extract<R, W>(mut iso: R, output: W) -> io::Result<()>
+    where
+        R: Read + Seek,
+        W: Write,
+    {
         iso.seek(SeekFrom::Start(0))?;
         extract_section(iso, GAME_HEADER_SIZE, output)
     }
 
-    pub fn write<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+    pub fn write(&self, mut writer: impl Write) -> io::Result<()> {
         let mut buf = Vec::new();
 
         writer.write_all(self.game_code.as_bytes())?;
@@ -240,7 +253,7 @@ impl Header {
         buf.resize(UNUSED_REGION_3_SIZE, 0);
         writer.write_all(&buf[..])?;
 
-        self.information.write(writer)?;
+        self.information.write(&mut writer)?;
 
         // There's just a bunch of left over space here, it may sometimes
         // contain some information, I don't know...
@@ -251,7 +264,7 @@ impl Header {
         Ok(())
     }
 
-    pub fn rebuild<P: AsRef<Path>>(root_path: P) -> io::Result<Header> {
+    pub fn rebuild(root_path: impl AsRef<Path>) -> io::Result<Header> {
         // apploader -> fst -> dol -> fs
         let appldr_path = root_path.as_ref().join("&&systemdata/Apploader.ldr");
         let appldr_file = File::open(appldr_path)?;
@@ -313,10 +326,7 @@ impl<'a> UniqueLayoutSection<'a> for Header {
         UniqueSectionType::Header
     }
 
-    fn with_offset<R>(
-        file: R,
-        offset: u64,
-    ) -> io::Result<Header>
+    fn with_offset<R>(file: R, offset: u64) -> io::Result<Header>
     where
         Self: Sized,
         R: BufRead + Seek,

@@ -1,5 +1,5 @@
-use std::io::{self, BufReader, BufRead, Cursor, Error, Lines};
 use std::ffi::OsStr;
+use std::io::{self, BufRead, BufReader, Cursor, Error, Lines};
 use std::process::Command;
 use std::str;
 
@@ -14,26 +14,25 @@ pub struct Disassembler<'a> {
 impl<'a> Disassembler<'a> {
     pub fn objdump_path(objdump_path: &OsStr) -> io::Result<Disassembler> {
         Disassembler::check_objdump_version(objdump_path)?;
-        Ok(Disassembler {
-            objdump_path,
-        })
+        Ok(Disassembler { objdump_path })
     }
 
     // TODO: make a version that accepts just the dol, not the whole iso
-    pub fn disasm<P: AsRef<OsStr>>(
+    pub fn disasm(
         &self,
-        file_path: P,
-        segment: &Segment
+        file_path: impl AsRef<OsStr>,
+        segment: &Segment,
     ) -> io::Result<DisasmIter> {
         let offset = segment.loading_address - segment.offset;
         let start = segment.offset + offset;
         let end = start + segment.size as u64;
         let output = Command::new(self.objdump_path)
-            .args(&["-mpowerpc", "-D", "-b", "binary", "-EB", "-M", "750cl",
+            .args(&[
+                "-mpowerpc", "-D", "-b", "binary", "-EB", "-M", "750cl",
                 "--start-address", &start.to_string(),
                 "--stop-address", &end.to_string(),
                 "--adjust-vma", &offset.to_string(),
-                ])
+            ])
             .arg(file_path.as_ref())
             .output()?;
 
@@ -45,18 +44,28 @@ impl<'a> Disassembler<'a> {
             Ok(d)
         } else {
             Err(match output.status.code() {
-                Some(c) => Error::new(io::ErrorKind::InvalidInput, &format!("The program `objdump` failed with a status of {}.", c)[..]),
-                None => Error::new(io::ErrorKind::Interrupted, "The program `objdump` was interupted."),
+                Some(c) => Error::new(
+                    io::ErrorKind::InvalidInput,
+                    &format!(
+                        "The program `objdump` failed with a status of {}.", c
+                    )[..],
+                ),
+                None => Error::new(
+                    io::ErrorKind::Interrupted,
+                    "The program `objdump` was interupted.",
+                ),
             })
         }
-
     }
 
     pub fn new() -> io::Result<Disassembler<'static>> {
         Disassembler::objdump_path(&OsStr::new("objdump"))
     }
 
-    fn check_objdump_version<P: AsRef<OsStr>>(objdump_path: P) -> io::Result<()> {
+    fn check_objdump_version<O>(objdump_path: O) -> io::Result<()>
+    where
+        O: AsRef<OsStr>,
+    {
         let expected_str = "GNU objdump";
         let yep = Command::new(objdump_path.as_ref())
             .arg("--version")
@@ -68,7 +77,10 @@ impl<'a> Disassembler<'a> {
         if yep {
             Ok(())
         } else {
-            Err(Error::new(io::ErrorKind::InvalidInput, "GNU objdump required."))
+            Err(Error::new(
+                io::ErrorKind::InvalidInput,
+                "GNU objdump required.",
+            ))
         }
     }
     

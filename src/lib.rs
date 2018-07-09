@@ -3,18 +3,18 @@ extern crate byteorder;
 extern crate lazy_static;
 extern crate regex;
 
-use std::io::{self, Read, Write};
 use std::cmp::min;
+use std::io::{self, Read, Write};
 
 mod game;
 pub use game::Game;
 pub use game::ROM_SIZE;
 
-pub mod header;
-pub mod fst;
-pub mod dol;
 pub mod apploader;
+pub mod dol;
 pub mod disassembler;
+pub mod fst;
+pub mod header;
 pub mod layout_section;
 
 // 1048576 = 2^20 = 1MiB, there's no real good reason behind this choice
@@ -45,7 +45,8 @@ pub fn extract_section(
 }
 
 pub fn align_to(n: u64, m: u64) -> u64 {
-    ((n / m) + (if n % m == 0 { 0 } else { 1 })) * m
+    let extra = if n % m == 0 { 0 } else { 1 };
+    ((n / m) + extra) * m
 }
 
 pub fn align(n: u64) -> u64 {
