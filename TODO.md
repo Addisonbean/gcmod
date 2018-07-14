@@ -28,6 +28,7 @@
 	* Read the objdump path from an enviroment variable? As well as the option?
 * Should the dol store None instead of empty segments?
 * Warn if the iso to be rebuilt already exists
+* Get rid of the `-V/--version` flag from the subcommand's help option, make sure it's only in the main help
 * Add a way to find out what dol segment will be loaded into a given address in memory, and what the offset will be in that segment at the offset
 * Add a thing like print\_layout for the dol, that prints brief information about all the segments (support -v for added verbosity)
 * Remove the offset param in Game::new

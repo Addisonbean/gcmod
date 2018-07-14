@@ -6,7 +6,7 @@ I'm working on adding more features to actually help the modding process go smoo
 
 ## How to use
 
-`gcmod -h` will give you an overview of the available subcommands.
+`gcmod --help` will give you an overview of the available subcommands.
 
 ```
 disasm     Disassemble the main DOL file from a ROM.
@@ -16,22 +16,23 @@ info       Display information about the ROM.
 rebuild    Rebuilds a ROM.
 ```
 
-You can also pass `-h` or `--help` after any of these subcommands to see their usage.
+You can also pass `--help` after any of these subcommands to see their usage.
 
 ```
-$ gcmod info -h
-gcmod-info 
+$ gcmod info --help
+gcmod-info
 Display information about the ROM.
 
 USAGE:
-    gcmod info [OPTIONS] <rom_path>
+    gcmod info [FLAGS] [OPTIONS] <rom_path>
 
 FLAGS:
-    -h, --help       Prints help information
+        --help       Prints help information
+    -h, --hex        Displays numbers in hexadecimal.
     -V, --version    Prints version information
 
 OPTIONS:
-    -o, --offset <offset>      Print information about whichever section is at the given offset. 
+    -o, --offset <offset>      Print information about whichever section is at the given offset.
     -s, --section <section>    Print information about a given section of the ROM.  [possible values: header, dol, fst,
                                apploader]
 
