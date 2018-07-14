@@ -23,6 +23,7 @@ pub const WRITE_CHUNK_SIZE: usize = 1048576;
 
 // 32KiB
 pub const DEFAULT_ALIGNMENT: u64 = 32 * 1024; 
+pub const MIN_ALIGNMENT: u64 = 4;
 
 pub fn extract_section(
     mut iso: impl Read,
@@ -45,13 +46,9 @@ pub fn extract_section(
     Ok(())
 }
 
-pub fn align_to(n: u64, m: u64) -> u64 {
+pub fn align(n: u64, m: u64) -> u64 {
     let extra = if n % m == 0 { 0 } else { 1 };
     ((n / m) + extra) * m
-}
-
-pub fn align(n: u64) -> u64 {
-    align_to(n, DEFAULT_ALIGNMENT)
 }
 
 #[derive(Copy, Clone)]

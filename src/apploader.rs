@@ -9,7 +9,7 @@ use layout_section::{
     UniqueLayoutSection,
     UniqueSectionType,
 };
-use ::{align_to, extract_section, format_u64, format_usize, NumberStyle};
+use ::{align, extract_section, format_u64, format_usize, NumberStyle};
 
 pub const APPLOADER_OFFSET: u64 = 0x2440;
 const APPLOADER_DATE_SIZE: usize = 0x0A;
@@ -51,7 +51,7 @@ impl Apploader {
 
     pub fn total_size(&self) -> usize {
         // self.code_size + self.trailer_size
-        align_to((self.code_size + self.trailer_size) as u64, 32) as usize
+        align((self.code_size + self.trailer_size) as u64, 32) as usize
     }
 
     pub fn extract<R, W>(mut iso: R, file: W) -> io::Result<()>
@@ -64,7 +64,7 @@ impl Apploader {
         let trailer_size = iso.read_u32::<BigEndian>()? as u64;
         iso.seek(SeekFrom::Start(APPLOADER_OFFSET))?;
 
-        let aligned_size = align_to(code_size + trailer_size, 32);
+        let aligned_size = align(code_size + trailer_size, 32);
         extract_section(iso, aligned_size as usize, file)
     }
 }

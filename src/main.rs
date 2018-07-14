@@ -2,13 +2,22 @@ extern crate clap;
 extern crate gcmod;
 extern crate tempfile;
 
-use std::fs::File;
+use std::fs::{remove_file, File};
 use std::io::{BufReader, Seek, SeekFrom};
+use std::mem::drop;
 use std::path::{Path, PathBuf};
 
 use clap::{App, Arg, SubCommand, AppSettings};
 
-use gcmod::{Game, format_usize, NumberStyle, parse_as_u64, ROM_SIZE};
+use gcmod::{
+    DEFAULT_ALIGNMENT,
+    Game,
+    format_usize,
+    MIN_ALIGNMENT,
+    NumberStyle,
+    parse_as_u64,
+    ROM_SIZE,
+};
 use gcmod::disassembler::Disassembler;
 use gcmod::dol::DOLHeader;
 use gcmod::layout_section::UniqueSectionType;
@@ -56,7 +65,11 @@ fn main() {
         .subcommand(SubCommand::with_name("rebuild")
             .about("Rebuilds a ROM.")
             .arg(Arg::with_name("root_path").required(true))
-            .arg(Arg::with_name("output").required(true)))
+            .arg(Arg::with_name("output").required(true))
+            .arg(Arg::with_name("alignment").short("a").long("alignment")
+                .required(false)
+                .takes_value(true)
+                .help("Specifies the alignment in bytes for the files in the filesystem. The default is 32768 bytes (32KiB) and the minimum is 2 bytes.")))
 
         .setting(AppSettings::SubcommandRequired);
     match opts.get_matches().subcommand() {
@@ -82,6 +95,7 @@ fn main() {
             rebuild_iso(
                 cmd.value_of("root_path").unwrap(),
                 cmd.value_of("output").unwrap(),
+                cmd.value_of("alignment"),
                 true,
             ),
         _ => (),
@@ -185,14 +199,31 @@ fn disassemble_dol(
 fn rebuild_iso(
     root_path: impl AsRef<Path>,
     iso_path: impl AsRef<Path>,
+    alignment: Option<&str>,
     rebuild_systemdata: bool,
 ) {
+    let alignment = match alignment {
+        Some(a) => match parse_as_u64(a) {
+            Ok(a) if a >= MIN_ALIGNMENT => a,
+            _ => {
+                eprintln!(
+                    "Invalid alignment. Must be an integer >= {}",
+                    MIN_ALIGNMENT,
+                );
+                return;
+            },
+        },
+        None => DEFAULT_ALIGNMENT,
+    };
+
     let mut iso = File::create(iso_path.as_ref()).unwrap(); 
     if let Err(e) =
-        Game::rebuild(root_path.as_ref(), &mut iso, rebuild_systemdata)
+        Game::rebuild(root_path.as_ref(), &mut iso, alignment, rebuild_systemdata)
     {
         eprintln!("Couldn't rebuild iso.");
-        eprintln!("{:?}", e);
+        e.get_ref().map(|e| eprintln!("{}", e));
+        drop(iso);
+        remove_file(iso_path.as_ref()).unwrap();
     }
 }
 

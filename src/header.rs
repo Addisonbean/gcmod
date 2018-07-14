@@ -264,7 +264,7 @@ impl Header {
         Ok(())
     }
 
-    pub fn rebuild(root_path: impl AsRef<Path>) -> io::Result<Header> {
+    pub fn rebuild(root_path: impl AsRef<Path>, alignment: u64) -> io::Result<Header> {
         // apploader -> fst -> dol -> fs
         let appldr_path = root_path.as_ref().join("&&systemdata/Apploader.ldr");
         let appldr_file = File::open(appldr_path)?;
@@ -277,8 +277,9 @@ impl Header {
         let mut fst_file = BufReader::new(File::open(fst_path)?);
         let fst_size = FST::new(&mut fst_file, 0)?.size;
 
-        let fst_offset = align(APPLOADER_OFFSET + appldr_size as u64);
-        let dol_offset = align(fst_offset + fst_file_size as u64);
+        let fst_offset =
+            align(APPLOADER_OFFSET + appldr_size as u64, alignment);
+        let dol_offset = align(fst_offset + fst_file_size as u64, alignment);
 
         let header_path = root_path.as_ref().join("&&systemdata/ISO.hdr");
         let mut header_buf = BufReader::new(File::open(header_path)?);

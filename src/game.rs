@@ -13,7 +13,7 @@ use fst::FST;
 use fst::entry::{DirectoryEntry, Entry};
 use header::{GAME_HEADER_SIZE, Header};
 use layout_section::{LayoutSection, UniqueLayoutSection, UniqueSectionType};
-use ::{extract_section, format_u64, format_usize, NumberStyle, WRITE_CHUNK_SIZE};
+use ::{DEFAULT_ALIGNMENT, extract_section, format_u64, format_usize, NumberStyle, WRITE_CHUNK_SIZE};
 
 pub const ROM_SIZE: usize = 0x57058000;
 
@@ -242,17 +242,20 @@ impl Game {
         }
     }
 
-    pub fn rebuild_systemdata(root_path: impl AsRef<Path>) -> io::Result<()> {
+    pub fn rebuild_systemdata(
+        root_path: impl AsRef<Path>,
+        alignment: u64,
+    ) -> io::Result<()> {
         // Apploader.ldr and Start.dol must exist before rebuilding Game.toc
 
         let fst_path = root_path.as_ref().join("&&systemdata/Game.toc");
         let mut fst_file = File::create(fst_path)?;
-        FST::rebuild(root_path.as_ref())?.write(&mut fst_file)?;
+        FST::rebuild(root_path.as_ref(), alignment)?.write(&mut fst_file)?;
 
         // Note: everything else must be rebuilt before the header can be,
         // and the old header must still exist
 
-        let h = Header::rebuild(root_path.as_ref())?;
+        let h = Header::rebuild(root_path.as_ref(), alignment)?;
         let header_path = root_path.as_ref().join("&&systemdata/ISO.hdr");
         let mut header_file = File::create(header_path)?;
         h.write(&mut header_file)?;
@@ -263,12 +266,13 @@ impl Game {
     pub fn rebuild(
         root_path: impl AsRef<Path>,
         mut output: impl Write,
+        alignment: u64,
         rebuild_files: bool,
     ) -> io::Result<()> {
         let mut bytes_written = 0;
 
         if rebuild_files {
-            Game::rebuild_systemdata(root_path.as_ref())?;
+            Game::rebuild_systemdata(root_path.as_ref(), alignment)?;
         }
 
         let files = Game::make_sections_btree(root_path.as_ref())?;
@@ -281,6 +285,16 @@ impl Game {
             let size = file.metadata()?.len();
             extract_section(&mut file, size as usize, &mut output)?;
             bytes_written += size;
+            if bytes_written as usize > ROM_SIZE {
+                println!();
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!(
+                        "Error: not enough space. Try decreasing the file alignment with the -a option (the default is {} bytes).",
+                        DEFAULT_ALIGNMENT,
+                    ),
+                ));
+            }
             print!("\r{}/{} files added.", i + 1, total_files);
         }
         println!();

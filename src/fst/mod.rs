@@ -145,7 +145,10 @@ impl FST {
         extract_section(iso, size, file)
     }
 
-    pub fn rebuild(root_path: impl AsRef<Path>) -> io::Result<FST> {
+    pub fn rebuild<P>(root_path: P, alignment: u64) -> io::Result<FST>
+    where
+        P: AsRef<Path>,
+    {
         let ldr_path = root_path.as_ref().join("&&systemdata/Apploader.ldr");
         let appldr_size = File::open(ldr_path)?.metadata()?.len();
 
@@ -178,7 +181,7 @@ impl FST {
             current_path: "/".into(),
         };
 
-        FST::rebuild_dir_info(root_path.as_ref(), &mut rb_info)?;
+        FST::rebuild_dir_info(root_path.as_ref(), &mut rb_info, alignment)?;
 
         rb_info.entries[0].as_dir_mut().unwrap().next_index =
             rb_info.entries.len();
@@ -187,8 +190,10 @@ impl FST {
             rb_info.entries.len() * 12 + rb_info.filename_offset as usize;
         let total_file_system_size = rb_info.file_offset as usize;
 
-        let offset = align(APPLOADER_OFFSET + appldr_size as u64);
-        let extra = offset + align(size as u64) + align(dol_size);
+        let offset = align(APPLOADER_OFFSET + appldr_size as u64, alignment);
+        let extra = offset +
+            align(size as u64, alignment) +
+            align(dol_size, alignment);
 
         for e in &mut rb_info.entries {
             if let Some(ref mut f) = e.as_file_mut() {
@@ -207,10 +212,11 @@ impl FST {
 
     // this needs to be documented, specifically how rb_info is being used
     // it's also a mess...
-    fn rebuild_dir_info<P>(path: P, rb_info: &mut RebuildInfo) -> io::Result<()>
-    where
-        P: AsRef<Path>,
-    {
+    fn rebuild_dir_info(
+        path: impl AsRef<Path>,
+        rb_info: &mut RebuildInfo,
+        alignment: u64,
+    ) -> io::Result<()> {
         for e in read_dir(path.as_ref())? {
             let e = e?;
 
@@ -251,7 +257,7 @@ impl FST {
                 rb_info.current_path.push(e.file_name());
                 let count_before = rb_info.entries.len();
 
-                FST::rebuild_dir_info(e.path(), rb_info)?;
+                FST::rebuild_dir_info(e.path(), rb_info, alignment)?;
 
                 rb_info.parent_index = old_index;
                 rb_info.current_path.pop();
@@ -264,7 +270,7 @@ impl FST {
                     size: e.metadata()?.len() as usize,
                 });
                 rb_info.file_offset +=
-                    align(entry.as_file().unwrap().size as u64);
+                    align(entry.as_file().unwrap().size as u64, alignment);
                 rb_info.file_count += 1;
                 rb_info.entries.push(entry);
             }
