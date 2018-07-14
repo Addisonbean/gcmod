@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use regex::Regex;
 
 use layout_section::{LayoutSection, SectionType};
+use ::{format_u64, format_usize, NumberStyle, parse_as_u64};
 
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub enum SegmentType {
@@ -65,7 +66,7 @@ impl Segment {
                 Regex::new(r"^\.?(text|data)(\d+)$").unwrap();
         }
         SEG_NAME_REGEX.captures(name).and_then(|c|
-            c.get(2).unwrap().as_str().parse::<u64>().map(|n| {
+            parse_as_u64(c.get(2).unwrap().as_str()).map(|n| {
                 let t = match c.get(1).unwrap().as_str() {
                     "text" => Text,
                     "data" => Data,
@@ -94,10 +95,13 @@ impl<'a> LayoutSection<'a> for Segment {
         self.offset
     }
 
-    fn print_info(&self) {
-        println!("Segment id: {}", self.seg_num);
-        println!("Segment type: {}", self.seg_type.to_string(self.seg_num));
-        println!("Offset: {}", self.offset);
-        println!("Size: {}", self.size);
+    fn print_info(&self, style: NumberStyle) {
+        println!("Segment id: {}", format_u64(self.seg_num, style));
+        println!(
+            "Segment type: {}",
+            self.seg_type.to_string(self.seg_num),
+        );
+        println!("Offset: {}", format_u64(self.offset, style));
+        println!("Size: {}", format_usize(self.size, style));
     }
 }

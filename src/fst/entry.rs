@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use byteorder::{BigEndian, ReadBytesExt};
 
 use layout_section::{LayoutSection, SectionType};
-use ::extract_section;
+use ::{extract_section, format_u64, format_usize, NumberStyle};
 
 pub const ENTRY_SIZE: usize = 12;
 
@@ -299,10 +299,10 @@ impl<'a> LayoutSection<'a> for FileEntry {
         self.file_offset
     }
 
-    fn print_info(&self) {
+    fn print_info(&self, style: NumberStyle) {
         println!("Path: {}", self.info.full_path.to_string_lossy());
-        println!("Offset: {}", self.file_offset);
-        println!("Size: {}", self.size);
+        println!("Offset: {}", format_u64(self.file_offset, style));
+        println!("Size: {}", format_usize(self.size, style));
     }
 }
 

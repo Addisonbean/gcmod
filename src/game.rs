@@ -13,7 +13,7 @@ use fst::FST;
 use fst::entry::{DirectoryEntry, Entry};
 use header::{GAME_HEADER_SIZE, Header};
 use layout_section::{LayoutSection, UniqueLayoutSection, UniqueSectionType};
-use ::{extract_section, WRITE_CHUNK_SIZE};
+use ::{extract_section, format_u64, format_usize, NumberStyle, WRITE_CHUNK_SIZE};
 
 pub const ROM_SIZE: usize = 0x57058000;
 
@@ -209,14 +209,14 @@ impl Game {
         }
     }
 
-    pub fn print_info(&self) {
+    pub fn print_info(&self, style: NumberStyle) {
         println!("Title: {}", self.header.title);
         println!("GameID: {}{}", self.header.game_code, self.header.maker_code);
-        println!("FST offset: {}", self.header.fst_offset);
-        println!("FST size: {} bytes", self.fst.size);
-        println!("Main DOL offset: {}", self.header.dol_offset);
-        println!("Main DOL entry point: {}", self.dol.entry_point);
-        println!("Apploader size: {}", self.apploader.total_size());
+        println!("FST offset: {}", format_u64(self.header.fst_offset, style));
+        println!("FST size: {} bytes", format_usize(self.fst.size, style));
+        println!("Main DOL offset: {}", format_u64(self.header.dol_offset, style));
+        println!("Main DOL entry point: {}", format_u64(self.dol.entry_point, style));
+        println!("Apploader size: {}", format_usize(self.apploader.total_size(), style));
 
         println!("\nROM Layout:");
         self.print_layout();

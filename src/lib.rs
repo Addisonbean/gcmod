@@ -5,6 +5,7 @@ extern crate regex;
 
 use std::cmp::min;
 use std::io::{self, Read, Write};
+use std::num::ParseIntError;
 
 mod game;
 pub use game::Game;
@@ -51,5 +52,48 @@ pub fn align_to(n: u64, m: u64) -> u64 {
 
 pub fn align(n: u64) -> u64 {
     align_to(n, DEFAULT_ALIGNMENT)
+}
+
+#[derive(Copy, Clone)]
+pub enum NumberStyle {
+    Hexadecimal,
+    Decimal,
+}
+
+// This isn't very efficient because the string returned will usually
+// just get passed to another formatting macro, like println.
+// The extra string allocation here isn't ideal, but it's not a problem
+// at the moment. It'll need to be scrapped if this gets used in a place
+// where it'll be called a lot.
+pub fn format_u64(num: u64, style: NumberStyle) -> String {
+    match style {
+        NumberStyle::Hexadecimal => format!("{:#x}", num),
+        NumberStyle::Decimal => format!("{}", num),
+    }
+}
+
+pub fn format_usize(num: usize, style: NumberStyle) -> String {
+    match style {
+        NumberStyle::Hexadecimal => format!("{:#x}", num),
+        NumberStyle::Decimal => format!("{}", num),
+    }
+}
+
+pub fn parse_as_u64(text: &str) -> Result<u64, ParseIntError> {
+    let is_hex = text.chars().count() > 2 && (&text[0..2] == "0x" || &text[0..2] == "0X");
+    if is_hex {
+        u64::from_str_radix(&text[2..], 16)
+    } else {
+        u64::from_str_radix(text, 10)
+    }
+}
+
+pub fn parse_as_usize(text: &str) -> Result<usize, ParseIntError> {
+    let is_hex = text.chars().count() > 2 && (&text[0..2] == "0x" || &text[0..2] == "0X");
+    if is_hex {
+        usize::from_str_radix(&text[2..], 16)
+    } else {
+        usize::from_str_radix(text, 10)
+    }
 }
 

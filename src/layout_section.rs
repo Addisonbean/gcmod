@@ -7,14 +7,14 @@ use apploader::Apploader;
 use dol::DOLHeader;
 use fst::FST;
 use header::Header;
-use ::extract_section;
+use ::{extract_section, format_u64, NumberStyle};
 
 pub trait LayoutSection<'a> {
     fn name(&'a self) -> Cow<'a, str>;
 
     fn section_type(&self) -> SectionType;
 
-    fn print_info(&self);
+    fn print_info(&self, style: NumberStyle);
 
     fn len(&self) -> usize;
 
@@ -48,12 +48,12 @@ pub trait LayoutSection<'a> {
         self.compare_offset(offset) == Equal
     }
 
-    fn print_section_info(&'a self) {
+    fn print_section_info(&'a self, style: NumberStyle) {
         println!("Name: {}", self.name());
         println!("Type: {}", self.section_type().to_str());
-        println!("Start: {}", self.start());
-        println!("End: {}", self.end());
-        println!("Size: {} bytes", self.len());
+        println!("Start: {}", format_u64(self.start(), style));
+        println!("End: {}", format_u64(self.end(), style));
+        println!("Size: {} bytes", format_u64(self.len() as u64, style));
     }
 }
 

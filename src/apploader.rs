@@ -9,7 +9,7 @@ use layout_section::{
     UniqueLayoutSection,
     UniqueSectionType,
 };
-use ::{align_to, extract_section};
+use ::{align_to, extract_section, format_u64, format_usize, NumberStyle};
 
 pub const APPLOADER_OFFSET: u64 = 0x2440;
 const APPLOADER_DATE_SIZE: usize = 0x0A;
@@ -86,15 +86,15 @@ impl<'a> LayoutSection<'a> for Apploader {
         APPLOADER_OFFSET
     }
 
-    fn print_info(&self) {
-        println!("Offset: {}", APPLOADER_OFFSET);
+    fn print_info(&self, style: NumberStyle) {
+        println!("Offset: {}", format_u64(APPLOADER_OFFSET, style));
         println!("Date: {}", self.date);
-        println!("Code size: {} bytes", self.code_size);
-        println!("Trailer size: {} bytes", self.trailer_size);
+        println!("Code size: {} bytes", format_usize(self.code_size, style));
+        println!("Trailer size: {} bytes", format_usize(self.trailer_size, style));
         println!("Entry point: not yet implemented");
         println!(
             "Size (including code and trailer, aligned to 32 bytes): {}",
-            self.total_size(),
+            format_usize(self.total_size(), style),
         );
     }
 }

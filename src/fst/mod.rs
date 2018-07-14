@@ -17,7 +17,7 @@ use layout_section::{
     UniqueLayoutSection,
     UniqueSectionType
 };
-use ::{align, extract_section};
+use ::{align, extract_section, format_u64, format_usize, NumberStyle};
 
 use self::entry::{DirectoryEntry, Entry, EntryInfo, ENTRY_SIZE, FileEntry};
 
@@ -352,15 +352,15 @@ impl<'a> LayoutSection<'a> for FST {
         self.offset
     }
 
-    fn print_info(&self) {
-        println!("Offset: {}", self.offset);
-        println!("Total entries: {}", self.entries.len());
-        println!("Total files: {}", self.file_count);
+    fn print_info(&self, style: NumberStyle) {
+        println!("Offset: {}", format_u64(self.offset, style));
+        println!("Total entries: {}", format_usize(self.entries.len(), style));
+        println!("Total files: {}", format_usize(self.file_count, style));
         println!(
             "Total space used by files: {} bytes",
-            self.total_file_system_size
+            format_usize(self.total_file_system_size, style),
         );
-        println!("Size: {} bytes", self.size);
+        println!("Size: {} bytes", format_usize(self.size, style));
     }
 }
 

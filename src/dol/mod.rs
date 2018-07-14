@@ -13,7 +13,7 @@ use layout_section::{
     UniqueLayoutSection,
     UniqueSectionType,
 };
-use ::extract_section;
+use ::{extract_section, format_u64, format_usize, NumberStyle};
 
 use self::segment::{Segment, SegmentType};
 
@@ -152,11 +152,11 @@ impl<'a> LayoutSection<'a> for DOLHeader {
         self.offset
     }
 
-    fn print_info(&self) {
-        println!("Offset: {}", self.offset);
-        println!("Size: {} bytes", self.dol_size);
-        println!("Header Size: {} bytes", DOL_HEADER_LEN);
-        println!("Entry point: {}", self.entry_point);
+    fn print_info(&self, style: NumberStyle) {
+        println!("Offset: {}", format_u64(self.offset, style));
+        println!("Size: {} bytes", format_usize(self.dol_size, style));
+        println!("Header Size: {} bytes", format_usize(DOL_HEADER_LEN, style));
+        println!("Entry point: {}", format_u64(self.entry_point, style));
     }
 }
 

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use clap::{App, Arg, SubCommand, AppSettings};
 
-use gcmod::{Game, ROM_SIZE};
+use gcmod::{Game, format_usize, NumberStyle, parse_as_u64, ROM_SIZE};
 use gcmod::disassembler::Disassembler;
 use gcmod::dol::DOLHeader;
 use gcmod::layout_section::UniqueSectionType;
@@ -26,6 +26,9 @@ fn main() {
 
         .subcommand(SubCommand::with_name("info")
             .about("Display information about the ROM.")
+            .arg(Arg::with_name("hex_output").short("h").long("hex")
+                 .required(false)
+                 .help("Displays numbers in hexadecimal."))
             .arg(Arg::with_name("rom_path").required(true))
             .arg(Arg::with_name("section").short("s").long("section")
                  .takes_value(true).required(false)
@@ -68,6 +71,7 @@ fn main() {
                 cmd.value_of("rom_path").unwrap(),
                 cmd.value_of("section"),
                 cmd.value_of("offset"),
+                should_use_hex(cmd.is_present("hex_output")),
             ),
         ("disasm", Some(cmd)) =>
             disassemble_dol(
@@ -82,6 +86,10 @@ fn main() {
             ),
         _ => (),
     }
+}
+
+fn should_use_hex(b: bool) -> NumberStyle {
+    if b { NumberStyle::Hexadecimal } else { NumberStyle::Decimal }
 }
 
 fn extract_iso(
@@ -106,8 +114,8 @@ fn extract_iso(
     }
 }
 
-fn print_iso_info(input: impl AsRef<Path>, offset: u64) {
-    try_to_open_game(input, offset).map(|(game, _)| game.print_info());
+fn print_iso_info(input: impl AsRef<Path>, offset: u64, style: NumberStyle) {
+    try_to_open_game(input, offset).map(|(game, _)| game.print_info(style));
 }
 
 // is this a bit much for main.rs? Move it to disassembler.rs?
@@ -136,9 +144,9 @@ fn disassemble_dol(
 
         // TODO: remove the redundancy here
         let mut addr = 0;
-        for (i, s) in header.text_segments.iter().enumerate() {
+        for s in header.text_segments.iter() {
             if s.size == 0 { continue }
-            println!("{}", s.seg_type.to_string(i as u64));
+            println!("{}", s.to_string());
 
             let disasm = disassembler.disasm(tmp_file.path(), s)
                 .expect("Failed to open DOL section");
@@ -154,9 +162,9 @@ fn disassemble_dol(
             }
         }
 
-        for (i, s) in header.data_segments.iter().enumerate() {
+        for s in header.data_segments.iter() {
             if s.size == 0 { continue }
-            println!("{}", s.seg_type.to_string(i as u64));
+            println!("{}", s.to_string());
 
             let disasm = disassembler.disasm(tmp_file.path(), s)
                 .expect("Failed to open DOL section");
@@ -188,31 +196,34 @@ fn rebuild_iso(
     }
 }
 
-fn get_info<P>(path: P, section: Option<&str>, offset: Option<&str>)
-where
-    P: AsRef<Path>,
-{
+fn get_info(
+    path: impl AsRef<Path>,
+    section: Option<&str>,
+    offset: Option<&str>,
+    style: NumberStyle,
+) {
     use gcmod::layout_section::UniqueSectionType::*;
 
     if let Some(offset) = offset {
-        find_offset(path.as_ref(), offset);
+        find_offset(path.as_ref(), offset, style);
     } else {
         match section {
-            Some("header") => print_section_info(path.as_ref(), &Header),
-            Some("dol") => print_section_info(path.as_ref(), &DOLHeader),
-            Some("fst") => print_section_info(path.as_ref(), &FST),
+            Some("header") => print_section_info(path.as_ref(), &Header, style),
+            Some("dol") => print_section_info(path.as_ref(), &DOLHeader, style),
+            Some("fst") => print_section_info(path.as_ref(), &FST, style),
             Some("apploader") | Some("app_loader") | Some("app-loader") =>
-                print_section_info(path.as_ref(), &Apploader),
+                print_section_info(path.as_ref(), &Apploader, style),
             Some(_) => unreachable!(),
-            None => print_iso_info(path.as_ref(), 0),
+            None => print_iso_info(path.as_ref(), 0, style),
         }
     }
 }
 
-fn print_section_info<P>(path: P, section_type: &UniqueSectionType)
-where
-    P: AsRef<Path>,
-{
+fn print_section_info(
+    path: impl AsRef<Path>,
+    section_type: &UniqueSectionType,
+    style: NumberStyle,
+) {
     let mut f = match File::open(path.as_ref()) {
         Ok(f) => BufReader::new(f),
         Err(_) => {
@@ -223,7 +234,7 @@ where
 
     match Game::open(&mut f, 0) {
         Ok(g) => {
-            g.get_section_by_type(section_type).print_info();
+            g.get_section_by_type(section_type).print_info(style);
             return;
         },
         _ => (),
@@ -231,7 +242,7 @@ where
 
     match section_type.with_offset(&mut f, 0) {
         Ok(s) => {
-            s.print_info();
+            s.print_info(style);
             return;
         },
         _ => (),
@@ -240,13 +251,13 @@ where
     eprintln!("Invalid file");
 }
 
-fn find_offset(header_path: impl AsRef<Path>, offset: &str) {
-    let offset = match offset.parse::<u64>() {
+fn find_offset(header_path: impl AsRef<Path>, offset: &str, style: NumberStyle) {
+    let offset = match parse_as_u64(offset) {
         Ok(o) if (o as usize) < ROM_SIZE => o,
         _ => {
             eprintln!(
                 "Invalid offset. Offset must be a number > 0 and < {}",
-                ROM_SIZE
+                format_usize(ROM_SIZE, style),
             );
             return;
         },
@@ -263,7 +274,7 @@ fn find_offset(header_path: impl AsRef<Path>, offset: &str) {
             }
         };
 
-        section.print_section_info();
+        section.print_section_info(style);
     });
 }
 

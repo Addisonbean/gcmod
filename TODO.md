@@ -4,7 +4,6 @@
 
 * Make the section names in `gcmod extract -s` more intuitive
 * Fix the style to be consistent with the official Rust style guide
-	* Check it with Rust fmt
 	* Find a better way to use clap, try the macros
 * Add a way to install it (then add that to the readme)
 * Explain Rust style guidelines (basic it's the official guidelines except for matches and explain how to break function signatures)
@@ -21,9 +20,10 @@
 * Refactor everything in main.rs
 * FST.entry\_with\_name seems too complicated, using entries needs to be easier
 * Make a DOL struct, which contains a DOLHeader struct, and would probably contain the segments directly
-* Add an extract associated function to layout_section, rename the extract functions to be more meaningful
+* Add an extract associated function to layout\_section, rename the extract functions to be more meaningful
 * Add more usful, generic stuff to extract\_section, like an error message if the file already exists
 * Make sure I'm using eprintln where I should be
+* Move stuff like consts and functions from src/lib.rs into something like src/utility.rs
 
 * Should the dol store None instead of empty segments?
 * Warn if the iso to be rebuilt already exists
@@ -40,7 +40,6 @@
 * Add an option to rebuild that doesn't rebuild the &&systemdata directory (should that be the default? probably?)
 * Make the disassembler more practical/easier to use
 	* Read the objdump path from an enviroment variable? As well as the option?
-* Accept hex numbers as inputs
 * Improve error messages
 
 * Keep working on the documentation on Google Docs

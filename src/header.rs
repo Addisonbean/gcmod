@@ -11,7 +11,7 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use apploader::APPLOADER_OFFSET;
 use fst::FST;
 use layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
-use ::{align, extract_section};
+use ::{align, extract_section, format_u64, format_usize, NumberStyle};
 
 pub const GAME_HEADER_SIZE: usize = 0x2440;
 
@@ -312,12 +312,12 @@ impl<'a> LayoutSection<'a> for Header {
         0
     }
 
-    fn print_info(&self) {
+    fn print_info(&self, style: NumberStyle) {
         println!("Game ID: {}{}", self.game_code, self.maker_code);
         println!("Title: {}", self.title);
-        println!("DOL offset: {}", self.dol_offset);
-        println!("FST offset: {}", self.fst_offset);
-        println!("FST size: {} bytes", self.fst_size);
+        println!("DOL offset: {}", format_u64(self.dol_offset, style));
+        println!("FST offset: {}", format_u64(self.fst_offset, style));
+        println!("FST size: {} bytes", format_usize(self.fst_size, style));
     }
 }
 
