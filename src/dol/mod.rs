@@ -133,6 +133,13 @@ impl DOLHeader {
 
         extract_section(iso, dol_size as usize, file)
     }
+
+    pub fn segment_at_addr(&self, mem_addr: u64) -> Option<&Segment> {
+        self.iter_segments().find(|s|
+            s.loading_address <= mem_addr &&
+            mem_addr < s.loading_address + s.size as u64
+        )
+    }
 }
 
 impl<'a> LayoutSection<'a> for DOLHeader {

@@ -2,11 +2,12 @@
 
 ## Next
 
+* Use Vec::binary\_search in ROMLayout::find\_offset, find a way to make sure that vec stays sorted (probably by not making it a Vec)
 * Make the section names in `gcmod extract -s` more intuitive
 * Fix the style to be consistent with the official Rust style guide
 	* Find a better way to use clap, try the macros
 * Add a way to install it (then add that to the readme)
-* Explain Rust style guidelines (basic it's the official guidelines except for matches and explain how to break function signatures)
+* Explain Rust style guidelines (basically it's the official guidelines except for matches and explain how to break function signatures)
 * Make the info command give more useful info, and less useless info (plus add verbosity levels with -v, -vv, and so on...)
 * LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc...
 * Have segments create their segment name in new, then make LayoutSection.name return a &str
@@ -23,13 +24,13 @@
 * Add more usful, generic stuff to extract\_section, like an error message if the file already exists
 * Move stuff like consts and functions from src/lib.rs into something like src/utility.rs
 * Keep working on the documentation on Google Docs
+* Set shell exit code/status after failure
 
 * Make the disassembler more practical/easier to use
 	* Read the objdump path from an enviroment variable? As well as the option?
 * Should the dol store None instead of empty segments?
 * Warn if the iso to be rebuilt already exists
 * Get rid of the `-V/--version` flag from the subcommand's help option, make sure it's only in the main help
-* Add a way to find out what dol segment will be loaded into a given address in memory, and what the offset will be in that segment at the offset
 * Add a thing like print\_layout for the dol, that prints brief information about all the segments (support -v for added verbosity)
 * Patch file generator for mods???
 * Remove the offset param in Game::new

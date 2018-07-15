@@ -12,6 +12,7 @@ use clap::{App, Arg, SubCommand, AppSettings};
 use gcmod::{
     DEFAULT_ALIGNMENT,
     Game,
+    format_u64,
     format_usize,
     MIN_ALIGNMENT,
     NumberStyle,
@@ -20,7 +21,7 @@ use gcmod::{
 };
 use gcmod::disassembler::Disassembler;
 use gcmod::dol::DOLHeader;
-use gcmod::layout_section::UniqueSectionType;
+use gcmod::layout_section::{LayoutSection, UniqueSectionType};
 
 fn main() {
     let opts = App::new("gciso")
@@ -52,8 +53,12 @@ fn main() {
                  .help("Print a given type of information about the ROM."))
             .arg(Arg::with_name("offset").short("o").long("offset")
                  .takes_value(true).required(false)
-                 .conflicts_with("type")
-                 .help("Print information about whichever section is at the given offset.")))
+                 .conflicts_with_all(&["type", "mem_addr"])
+                 .help("Print information about whichever section is at the given offset."))
+            .arg(Arg::with_name("mem_addr").short("m").long("mem_addr")
+                 .takes_value(true).required(false)
+                 .conflicts_with_all(&["type", "offset"])
+                 .help("Print information about the DOL segment that will be loaded into a given address in memory.")))
 
         .subcommand(SubCommand::with_name("disasm")
             .about("Disassemble the main DOL file from a ROM.")
@@ -85,6 +90,7 @@ fn main() {
                 cmd.value_of("rom_path").unwrap(),
                 cmd.value_of("type"),
                 cmd.value_of("offset"),
+                cmd.value_of("mem_addr"),
                 should_use_hex(cmd.is_present("hex_output")),
             ),
         ("disasm", Some(cmd)) =>
@@ -232,12 +238,15 @@ fn get_info(
     path: impl AsRef<Path>,
     section: Option<&str>,
     offset: Option<&str>,
+    mem_addr: Option<&str>,
     style: NumberStyle,
 ) {
     use gcmod::layout_section::UniqueSectionType::*;
 
     if let Some(offset) = offset {
         find_offset(path.as_ref(), offset, style);
+    } else if let Some(addr) = mem_addr {
+        find_mem_addr(path.as_ref(), addr, style);
     } else {
         match section {
             Some("header") => print_section_info(path.as_ref(), &Header, style),
@@ -315,6 +324,22 @@ fn find_offset(header_path: impl AsRef<Path>, offset: &str, style: NumberStyle) 
 
         section.print_section_info(style);
     });
+}
+
+fn find_mem_addr(path: impl AsRef<Path>, mem_addr: &str, style: NumberStyle) {
+    if let Ok(mem_addr) = parse_as_u64(mem_addr) {
+        try_to_open_game(path.as_ref(), 0).map(|(game, _)| {
+            if let Some(s) = game.dol.segment_at_addr(mem_addr) {
+                let offset = mem_addr - s.loading_address;
+                println!("Segment: {}", s.name());
+                println!("Offset from start of segment: {}", format_u64(offset, style));
+            } else {
+                eprintln!("No DOL segment will be loaded at this address.");
+            }
+        });
+    } else {
+        eprintln!("Invalid address. Must be an integer.");
+    }
 }
 
 fn extract_section(
