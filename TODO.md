@@ -14,7 +14,6 @@
 * Add more methods to layout\_section, like rebuild and extract related stuff?
 * Make the info subcommand always give the same output for a section, regardless of whether -t or -o is used.
 	 * Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
-* Find where methods are accepting `&Vec` but could accept `&[]`
 * Use std::path::MAIN\_SEPARATOR for Windows support
 * Rather than doing things like turning OsStr into a &str for comparison, turn the &str into an OsStr
 * Refactor everything in main.rs
@@ -23,6 +22,7 @@
 * Add an extract associated function to layout\_section, rename the extract functions to be more meaningful
 * Add more usful, generic stuff to extract\_section, like an error message if the file already exists
 * Move stuff like consts and functions from src/lib.rs into something like src/utility.rs
+* Keep working on the documentation on Google Docs
 
 * Make the disassembler more practical/easier to use
 	* Read the objdump path from an enviroment variable? As well as the option?
@@ -31,10 +31,10 @@
 * Get rid of the `-V/--version` flag from the subcommand's help option, make sure it's only in the main help
 * Add a way to find out what dol segment will be loaded into a given address in memory, and what the offset will be in that segment at the offset
 * Add a thing like print\_layout for the dol, that prints brief information about all the segments (support -v for added verbosity)
+* Patch file generator for mods???
 * Remove the offset param in Game::new
 * Add cool stuff for getting info on the rom like a tree command to view the file system as a tree, an ls or list-files subcommand, cool stuff like that
 * Improve the modules exported by lib.rs, like no more gamecube\_iso\_assistant::apploader::Apploader
-* Add a "layout" option for the --type argument of the info subcommand
 * Make methods or functions for adding sections or files to a btree map, maybe make a struct to generalize the thing going on with make\_sections\_btree
 * Make a function like Game::is\_valid\_rom that checks to see if it has the magic byte and if it's the right size?
 * Add an option to rebuild that doesn't rebuild the &&systemdata directory (should that be the default? probably?)
@@ -42,7 +42,6 @@
 * Be smart about the order that files are put onto a rom, to save space (this only matters with a significant alignment)
 	* Then display available free space after creating a rom
 
-* Keep working on the documentation on Google Docs
 * Improve this file, make it neater and well organized/prioritized
 	* Have sections like refactoring, features, usage, ...
 * Cow could probably be used a few more places to reduce allocations, but the potential benefits probably aren't worth the trouble. Look into this though

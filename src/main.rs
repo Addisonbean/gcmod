@@ -39,20 +39,21 @@ fn main() {
                  .required(false)
                  .help("Displays numbers in hexadecimal."))
             .arg(Arg::with_name("rom_path").required(true))
-            .arg(Arg::with_name("section").short("s").long("section")
+            .arg(Arg::with_name("type").short("t").long("type")
                  .takes_value(true).required(false)
                  .possible_values(&[
                     "header",
                     "dol",
                     "fst",
                     "apploader",
+                    "layout",
                  ])
                  .case_insensitive(true)
-                 .help("Print information about a given section of the ROM. "))
+                 .help("Print a given type of information about the ROM."))
             .arg(Arg::with_name("offset").short("o").long("offset")
                  .takes_value(true).required(false)
-                 .conflicts_with("section")
-                 .help("Print information about whichever section is at the given offset. ")))
+                 .conflicts_with("type")
+                 .help("Print information about whichever section is at the given offset.")))
 
         .subcommand(SubCommand::with_name("disasm")
             .about("Disassemble the main DOL file from a ROM.")
@@ -82,7 +83,7 @@ fn main() {
         ("info", Some(cmd)) => 
             get_info(
                 cmd.value_of("rom_path").unwrap(),
-                cmd.value_of("section"),
+                cmd.value_of("type"),
                 cmd.value_of("offset"),
                 should_use_hex(cmd.is_present("hex_output")),
             ),
@@ -244,6 +245,7 @@ fn get_info(
             Some("fst") => print_section_info(path.as_ref(), &FST, style),
             Some("apploader") | Some("app_loader") | Some("app-loader") =>
                 print_section_info(path.as_ref(), &Apploader, style),
+            Some("layout") => print_layout(path.as_ref()),
             Some(_) => unreachable!(),
             None => print_iso_info(path.as_ref(), 0, style),
         }
@@ -280,6 +282,12 @@ fn print_section_info(
     }
 
     eprintln!("Invalid file");
+}
+
+fn print_layout(path: impl AsRef<Path>) {
+    try_to_open_game(path.as_ref(), 0).map(|(game, _)|
+        game.print_layout()
+    );
 }
 
 fn find_offset(header_path: impl AsRef<Path>, offset: &str, style: NumberStyle) {

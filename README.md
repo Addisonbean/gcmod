@@ -32,9 +32,9 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -o, --offset <offset>      Print information about whichever section is at the given offset.
-    -s, --section <section>    Print information about a given section of the ROM.  [possible values: header, dol, fst,
-                               apploader]
+    -o, --offset <offset>    Print information about whichever section is at the given offset.
+    -t, --type <type>        Print a given type of information about the ROM. [possible values: header, dol, fst,
+                             apploader, layout]
 
 ARGS:
     <rom_path>
