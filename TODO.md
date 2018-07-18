@@ -27,7 +27,6 @@
 * Set shell exit code/status after failure
 
 * Make the disassembler more practical/easier to use
-	* Read the objdump path from an enviroment variable? As well as the option?
 * Should the dol store None instead of empty segments?
 * Warn if the iso to be rebuilt already exists
 * Get rid of the `-V/--version` flag from the subcommand's help option, make sure it's only in the main help

@@ -2,6 +2,7 @@ extern crate clap;
 extern crate gcmod;
 extern crate tempfile;
 
+use std::env;
 use std::fs::{remove_file, File};
 use std::io::{BufReader, Seek, SeekFrom};
 use std::mem::drop;
@@ -65,8 +66,7 @@ fn main() {
             .arg(Arg::with_name("rom_path").required(true))
             .arg(Arg::with_name("objdump_path").long("objdump")
                  .takes_value(true).required(false)
-                 .help("If you don't have the GNU version of objdump in $PATH, you must provide the path here.")))
-                 // .help("If you don't have the GNU version of objdump in $PATH, you must either provide the path here or set it in the $GCMOD_OBJDUMP enviroment variable.")))
+                 .help("If you don't have the GNU version of objdump in $PATH, you must either provide the path here or set it in the $GCMOD_GNU_OBJDUMP enviroment variable.")))
 
         .subcommand(SubCommand::with_name("rebuild")
             .about("Rebuilds a ROM.")
@@ -153,7 +153,10 @@ fn disassemble_dol(
         let header = DOLHeader::new(tmp_file.as_mut(), 0)
             .expect("Failed to read header.");
         let objdump_path = objdump_path
-            .map_or(PathBuf::from("objdump"), |p| p.as_ref().to_path_buf());
+            .map(|p| p.as_ref().to_path_buf())
+            .or_else(|| env::var("GCMOD_GNU_OBJDUMP").ok().map(|p| PathBuf::from(p)))
+            .unwrap_or_else(|| PathBuf::from("objdump"));
+
         let disassembler =
             match Disassembler::objdump_path(objdump_path.as_os_str()) {
                 Ok(d) => d,
