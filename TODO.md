@@ -2,6 +2,11 @@
 
 ## Next
 
+* Only make stuff public if it needs to/should be be
+* Make the disassembler more practical/easier to use
+	* Don't print to stdout, but rather a file
+	* Add the ability to pick which segment(s) are disassembled
+	* Sometimes I just want to disassemble a single instruction, add that.
 * Use Vec::binary\_search in ROMLayout::find\_offset, find a way to make sure that vec stays sorted (probably by not making it a Vec)
 * Make the section names in `gcmod extract -s` more intuitive
 * Fix the style to be consistent with the official Rust style guide
@@ -14,7 +19,7 @@
 * Add an offset param to extract\_section
 * Add more methods to layout\_section, like rebuild and extract related stuff?
 * Make the info subcommand always give the same output for a section, regardless of whether -t or -o is used.
-	 * Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
+	* Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
 * Use std::path::MAIN\_SEPARATOR for Windows support
 * Rather than doing things like turning OsStr into a &str for comparison, turn the &str into an OsStr
 * Refactor everything in main.rs
@@ -26,8 +31,6 @@
 * Keep working on the documentation on Google Docs
 * Set shell exit code/status after failure
 
-* Make the disassembler more practical/easier to use
-* Should the dol store None instead of empty segments?
 * Warn if the iso to be rebuilt already exists
 * Get rid of the `-V/--version` flag from the subcommand's help option, make sure it's only in the main help
 * Add a thing like print\_layout for the dol, that prints brief information about all the segments (support -v for added verbosity)
@@ -73,7 +76,6 @@
 
 Refactoring
 * Improve DisasmIter
-* Only make stuff public if it needs to be
 * Be consistent (argument order, naming, output, and other stuff)
 * Should FST be renamed to FileSystemTable?
 

@@ -19,6 +19,7 @@ use self::segment::{Segment, SegmentType};
 
 const TEXT_SEG_COUNT: usize = 7;
 const DATA_SEG_COUNT: usize = 11;
+const TOTAL_SEG_COUNT: usize = TEXT_SEG_COUNT + DATA_SEG_COUNT;
 
 pub const DOL_OFFSET_OFFSET: u64 = 0x0420;
 pub const DOL_HEADER_LEN: usize = 0x100;
@@ -26,10 +27,12 @@ pub const DOL_HEADER_LEN: usize = 0x100;
 #[derive(Debug)]
 pub struct DOLHeader {
     pub offset: u64,
-    pub text_segments: [Segment; TEXT_SEG_COUNT],
-    pub data_segments: [Segment; DATA_SEG_COUNT],
     pub dol_size: usize,
     pub entry_point: u64,
+    segments: Vec<Segment>,
+    // This is the index in `segments` where the data segments are. The segments
+    // before this index are all text segments.
+    data_segments_index: usize,
 }
 
 impl DOLHeader {
@@ -37,49 +40,66 @@ impl DOLHeader {
     where
         R: Read + Seek,
     {
-        file.seek(SeekFrom::Start(offset))?;
-        let mut text_segments = [Segment::text(); TEXT_SEG_COUNT];
-        let mut data_segments = [Segment::data(); DATA_SEG_COUNT];
-        {
-            let mut segs = [
-                &mut text_segments[..],
-                &mut data_segments[..],
-            ];
+        file.seek(SeekFrom::Start(offset + 0x90))?;
+        let mut segments = Vec::new();
 
-            for ref mut seg_type in segs.iter_mut() {
-                for i in 0..seg_type.len() {
-                    seg_type[i].offset = 
-                        offset + file.read_u32::<BigEndian>()? as u64;
-                    seg_type[i].seg_num = i as u64;
-                }
+        let mut data_segments_index = 0;
+        let mut is_text = true;
+        for i in 0..TOTAL_SEG_COUNT {
+            let mut num = i as u64;
+            if i >= TEXT_SEG_COUNT {
+                is_text = false;
+                data_segments_index = segments.len();
+                num -= TEXT_SEG_COUNT as u64;
             }
-
-            for ref mut seg_type in segs.iter_mut() {
-                for i in 0..seg_type.len() {
-                    seg_type[i].loading_address =
-                        file.read_u32::<BigEndian>()? as u64;
-                }
-            }
-
-            for ref mut seg_type in segs.iter_mut() {
-                for i in 0..seg_type.len() {
-                    seg_type[i].size = file.read_u32::<BigEndian>()? as usize;
-                }
+            let size = file.read_u32::<BigEndian>()? as usize;
+            if size != 0 {
+                let mut s = if is_text {
+                    Segment::text()
+                } else {
+                    Segment::data()
+                };
+                s.size = size;
+                s.seg_num = num;
+                segments.push(s);
             }
         }
 
-        file.seek(SeekFrom::Current(8))?;
+        file.seek(SeekFrom::Start(offset))?;
+        for s in &mut segments[..] {
+            let previous = if s.seg_type == SegmentType::Data {
+                TEXT_SEG_COUNT as u64
+            } else {
+                0
+            };
+            file.seek(SeekFrom::Start(offset + (previous + s.seg_num) * 4))?;
+            s.offset = offset + file.read_u32::<BigEndian>()? as u64;
+        }
+
+        for s in &mut segments[..] {
+            let previous = if s.seg_type == SegmentType::Data {
+                TEXT_SEG_COUNT as u64
+            } else {
+                0
+            };
+            file.seek(SeekFrom::Start(
+                offset + 0x48 + (previous + s.seg_num) * 4
+            ))?;
+            s.loading_address = file.read_u32::<BigEndian>()? as u64;
+        }
+
+        file.seek(SeekFrom::Start(offset + 0xE0))?;
         let entry_point = file.read_u32::<BigEndian>()? as u64;
 
-        let dol_size = text_segments.iter().chain(data_segments.iter())
+        let dol_size = segments.iter()
             .map(|s| (s.offset - offset) as usize + s.size).max().unwrap();
 
         Ok(DOLHeader {
             offset,
-            text_segments,
-            data_segments,
             dol_size,
             entry_point,
+            segments,
+            data_segments_index,
         })
     }
 
@@ -88,15 +108,17 @@ impl DOLHeader {
         seg_type: SegmentType,
         number: u64,
     ) -> Option<&Segment> {
-        use self::segment::SegmentType::*;
-        match seg_type {
-            Text => &self.text_segments[..],
-            Data => &self.data_segments[..],
-        }.get(number as usize)
+        let start = if seg_type == SegmentType::Data {
+            self.data_segments_index
+        } else {
+            0
+        };
+        self.segments[start..].iter()
+            .find(|s| s.seg_num == number && s.seg_type == seg_type)
     }
 
     pub fn iter_segments(&self) -> impl Iterator<Item = &Segment> {
-        self.text_segments.iter().chain(self.data_segments.iter())
+        self.segments.iter()
     }
 
     pub fn extract<R, W>(mut iso: R, dol_addr: u64, file: W) -> io::Result<()>
@@ -107,8 +129,7 @@ impl DOLHeader {
         iso.seek(SeekFrom::Start(dol_addr))?;
         let mut dol_size = 0;
 
-        // 7 code segments
-        for i in 0..7 {
+        for i in 0..(TEXT_SEG_COUNT as u64) {
             iso.seek(SeekFrom::Start(dol_addr + 0x00 + i * 4))?;
             let seg_offset = iso.read_u32::<BigEndian>()?;
 
@@ -118,8 +139,7 @@ impl DOLHeader {
             dol_size = max(seg_offset + seg_size, dol_size);
         }
 
-        // 11 data segments
-        for i in 0..11 {
+        for i in 0..(DATA_SEG_COUNT as u64) {
             iso.seek(SeekFrom::Start(dol_addr + 0x1c + i * 4))?;
             let seg_offset = iso.read_u32::<BigEndian>()?;
 
@@ -135,7 +155,7 @@ impl DOLHeader {
     }
 
     pub fn segment_at_addr(&self, mem_addr: u64) -> Option<&Segment> {
-        self.iter_segments().find(|s|
+        self.segments.iter().find(|s|
             s.loading_address <= mem_addr &&
             mem_addr < s.loading_address + s.size as u64
         )

@@ -166,9 +166,8 @@ fn disassemble_dol(
                 },
             };
 
-        // TODO: remove the redundancy here
         let mut addr = 0;
-        for s in header.text_segments.iter() {
+        for s in header.iter_segments() {
             if s.size == 0 { continue }
             println!("{}", s.to_string());
 
@@ -179,24 +178,6 @@ fn disassemble_dol(
                 println!(
                     "{:#010x}: {:#010x} {}",
                     addr, instr.opcode, instr.text,
-                );
-                if instr.location.is_none() {
-                    println!("                       ...");
-                }
-            }
-        }
-
-        for s in header.data_segments.iter() {
-            if s.size == 0 { continue }
-            println!("{}", s.to_string());
-
-            let disasm = disassembler.disasm(tmp_file.path(), s)
-                .expect("Failed to open DOL section");
-            for instr in disasm {
-                addr = instr.location.unwrap_or(addr + 4);
-                println!(
-                    "{:#010x}: {:#010x} {}",
-                    addr, instr.opcode, instr.text
                 );
                 if instr.location.is_none() {
                     println!("                       ...");

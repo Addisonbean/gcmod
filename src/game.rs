@@ -46,8 +46,7 @@ impl Game {
 
     pub fn rom_layout(&self) -> ROMLayout {
         let size = 5
-            + self.dol.text_segments.len()
-            + self.dol.data_segments.len()
+            + self.dol.iter_segments().count()
             + self.fst.entries.len();
 
         let mut layout: Vec<&LayoutSection> = Vec::with_capacity(size);
