@@ -280,7 +280,7 @@ impl Game {
         for (i, (&offset, filename)) in files.iter().enumerate() {
             write_zeros((offset - bytes_written) as usize, &mut output)?;
             bytes_written = offset;
-            let mut file = File::open(root_path.as_ref().join(filename))?;
+            let mut file = File::open(filename)?;
             let size = file.metadata()?.len();
             extract_section(&mut file, size as usize, &mut output)?;
             bytes_written += size;
@@ -315,7 +315,7 @@ impl Game {
         let mut fst_buf = BufReader::new(File::open(&fst_path)?);
         let fst = FST::new(&mut fst_buf, 0)?;
 
-        let mut tree = make_files_btree(&fst);
+        let mut tree = make_files_btree(root, &fst);
         tree.insert(0, header_path);
         tree.insert(APPLOADER_OFFSET, apploader_path);
         tree.insert(header.fst_offset, fst_path);
@@ -340,9 +340,12 @@ fn write_zeros(count: usize, mut output: impl Write) -> io::Result<()> {
     Ok(())
 }
 
-fn make_files_btree(fst: &FST) -> BTreeMap<u64, PathBuf> {
+fn make_files_btree<P>(root: P, fst: &FST) -> BTreeMap<u64, PathBuf>
+where
+    P: AsRef<Path>,
+{
     let mut files = BTreeMap::new();
-    fill_files_btree(&mut files, fst.entries[0].as_dir().unwrap(), "", fst);
+    fill_files_btree(&mut files, fst.entries[0].as_dir().unwrap(), root, fst);
     files
 }
 
@@ -357,7 +360,7 @@ fn fill_files_btree(
             Entry::File(ref file) => {
                 files.insert(
                     file.file_offset,
-                    prefix.as_ref().join(&file.info.name)
+                    prefix.as_ref().join(&file.info.name),
                 );
             },
             Entry::Directory(ref sub_dir) => {
@@ -365,7 +368,7 @@ fn fill_files_btree(
                     files,
                     sub_dir,
                     prefix.as_ref().join(&sub_dir.info.name),
-                    fst
+                    fst,
                 );
             },
         };
