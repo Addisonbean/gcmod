@@ -2,7 +2,15 @@
 
 `gcmod` is a tool for extracting the contents of and rebuilding GameCube ROMs, as well as for getting all sorts of useful information about a ROM without ever extracting the contents. 
 
-I'm working on adding more features to actually help the modding process go smoother, and eventually I would like it to also be a powerful tool for creating mods for GameCube games. I'd also like to create a Rust API for all of this at some point, but that's a slightly lower priority right now.
+I'm working on adding more features to actually help the modding process go smoother, and eventually, I would like it to also be a powerful tool for creating mods for GameCube games. I'd also like to create a Rust API for all of this at some point, but that's a slightly lower priority right now.
+
+## Installation
+
+If you don't have Rust installed, you'll need to do that first. I recommend installing it via [rustup](https://rustup.rs/). gcmod works on macOS and Linux, but there is currently no Windows support. I'd like to add that eventually, but I don't have a Windows machine at the moment.
+
+To install gcmod, download the project and run `cargo install` in the project's directory. This will place gcmod at `~/.cargo/bin/gcmod`, so you will need to make sure `~/.cargo/bin` is in your `$PATH` environment variable.
+
+I plan on adding a better installation method eventually, as well as distributing pre-built binaries.
 
 ## How to use
 
