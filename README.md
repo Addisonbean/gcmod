@@ -48,5 +48,18 @@ ARGS:
     <rom_path>
 ```
 
-Here's a link to a reference to some documentation I'm working on for the GameCube ROM format: [GameCube ROM Info](https://docs.google.com/document/d/1uuLgEZhlXwPBKyDEFGLU_g_7azzA60bv5O3kPxXZmyE/edit?usp=sharing) (I don't update this very often, I need to stay on top of that...)
+## Examples
+
+```
+$ gcmod extract melee.iso melee_root
+Writing game header...
+Writing file system table...
+Writing app loader...
+Writing DOL header...
+1209/1209 files written.
+$ gcmod rebuild melee_root melee.iso
+1212/1212 files added.
+```
+
+Here's a link to some documentation I'm working on for the GameCube ROM format: [GameCube ROM Info](https://docs.google.com/document/d/1uuLgEZhlXwPBKyDEFGLU_g_7azzA60bv5O3kPxXZmyE/edit?usp=sharing) (I don't update this very often, I need to stay on top of that...)
 

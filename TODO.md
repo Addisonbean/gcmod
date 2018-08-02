@@ -7,6 +7,7 @@
 	* Don't print to stdout, but rather a file
 	* Add the ability to pick which segment(s) are disassembled
 	* Sometimes I just want to disassemble a single instruction, add that.
+* Improve the output of rebuild and extract
 * Use Vec::binary\_search in ROMLayout::find\_offset, find a way to make sure that vec stays sorted (probably by not making it a Vec)
 * Make the section names in `gcmod extract -s` more intuitive
 * Fix the style to be consistent with the official Rust style guide
