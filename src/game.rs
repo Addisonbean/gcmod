@@ -6,13 +6,13 @@ use std::io::{self, BufRead, BufReader, Read, Seek, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use apploader::{Apploader, APPLOADER_OFFSET};
-use dol::DOLHeader;
-use dol::segment::Segment;
-use fst::FST;
-use fst::entry::{DirectoryEntry, Entry};
-use header::{GAME_HEADER_SIZE, Header};
-use layout_section::{LayoutSection, UniqueLayoutSection, UniqueSectionType};
+use sections::apploader::{Apploader, APPLOADER_OFFSET};
+use sections::dol::DOLHeader;
+use sections::dol::segment::Segment;
+use sections::fst::FST;
+use sections::fst::entry::{DirectoryEntry, Entry};
+use sections::header::{GAME_HEADER_SIZE, Header};
+use sections::layout_section::{LayoutSection, UniqueLayoutSection, UniqueSectionType};
 use ::{DEFAULT_ALIGNMENT, extract_section, format_u64, format_usize, NumberStyle, WRITE_CHUNK_SIZE};
 
 pub const ROM_SIZE: usize = 0x57058000;
@@ -154,7 +154,7 @@ impl Game {
         &self,
         section_type: &UniqueSectionType,
     ) -> &UniqueLayoutSection {
-        use layout_section::UniqueSectionType::*;
+        use sections::layout_section::UniqueSectionType::*;
         match section_type {
             Header => &self.header as &UniqueLayoutSection,
             Apploader => &self.apploader as &UniqueLayoutSection,

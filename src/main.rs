@@ -20,9 +20,11 @@ use gcmod::{
     parse_as_u64,
     ROM_SIZE,
 };
-use gcmod::disassembler::Disassembler;
-use gcmod::dol::DOLHeader;
-use gcmod::layout_section::{LayoutSection, UniqueSectionType};
+use gcmod::Disassembler;
+use gcmod::sections::{
+    dol::DOLHeader,
+    layout_section::{LayoutSection, UniqueSectionType}
+};
 
 fn main() {
     let opts = App::new("gciso")
@@ -225,7 +227,7 @@ fn get_info(
     mem_addr: Option<&str>,
     style: NumberStyle,
 ) {
-    use gcmod::layout_section::UniqueSectionType::*;
+    use gcmod::sections::layout_section::UniqueSectionType::*;
 
     if let Some(offset) = offset {
         find_offset(path.as_ref(), offset, style);

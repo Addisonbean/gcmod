@@ -3,10 +3,12 @@ use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::cmp::Ordering::*;
 use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 
-use apploader::Apploader;
-use dol::DOLHeader;
-use fst::FST;
-use header::Header;
+use sections::{
+    apploader::Apploader,
+    dol::DOLHeader,
+    fst::FST,
+    header::Header,
+};
 use ::{extract_section, format_u64, NumberStyle};
 
 pub trait LayoutSection<'a> {

@@ -3,7 +3,7 @@ use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 
 use byteorder::{BigEndian, ReadBytesExt};
 
-use layout_section::{
+use sections::layout_section::{
     LayoutSection,
     SectionType,
     UniqueLayoutSection,

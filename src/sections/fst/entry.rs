@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use byteorder::{BigEndian, ReadBytesExt};
 
-use layout_section::{LayoutSection, SectionType};
+use sections::layout_section::{LayoutSection, SectionType};
 use ::{extract_section, format_u64, format_usize, NumberStyle};
 
 pub const ENTRY_SIZE: usize = 12;

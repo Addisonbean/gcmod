@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 
 use byteorder::{BigEndian, ReadBytesExt};
 
-use apploader::APPLOADER_OFFSET;
-use layout_section::{
+use sections::apploader::APPLOADER_OFFSET;
+use sections::layout_section::{
     LayoutSection,
     SectionType,
     UniqueLayoutSection,

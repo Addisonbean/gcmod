@@ -7,7 +7,7 @@ use std::iter::Iterator;
 
 use byteorder::{BigEndian, ReadBytesExt};
 
-use layout_section::{
+use sections::layout_section::{
     LayoutSection,
     SectionType,
     UniqueLayoutSection,

@@ -8,9 +8,9 @@ use std::path::Path;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-use apploader::APPLOADER_OFFSET;
-use fst::FST;
-use layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
+use sections::apploader::APPLOADER_OFFSET;
+use sections::fst::FST;
+use sections::layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
 use ::{align, extract_section, format_u64, format_usize, NumberStyle};
 
 pub const GAME_HEADER_SIZE: usize = 0x2440;

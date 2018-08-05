@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use regex::Regex;
 
-use layout_section::{LayoutSection, SectionType};
+use sections::layout_section::{LayoutSection, SectionType};
 use ::{format_u64, format_usize, NumberStyle, parse_as_u64};
 
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]

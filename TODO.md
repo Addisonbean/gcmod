@@ -8,6 +8,7 @@
 	* Add the ability to pick which segment(s) are disassembled
 	* Sometimes I just want to disassemble a single instruction, add that.
 * Improve the output of rebuild and extract
+* Rename LayoutSection to Section???
 * Use Vec::binary\_search in ROMLayout::find\_offset, find a way to make sure that vec stays sorted (probably by not making it a Vec)
 * Make the section names in `gcmod extract -s` more intuitive
 * Fix the style to be consistent with the official Rust style guide
@@ -16,13 +17,11 @@
 * Explain Rust style guidelines (basically it's the official guidelines except for matches and explain how to break function signatures)
 * Make the info command give more useful info, and less useless info (plus add verbosity levels with -v, -vv, and so on...)
 * LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc...
-* Have segments create their segment name in new, then make LayoutSection.name return a &str
 * Add an offset param to extract\_section
 * Add more methods to layout\_section, like rebuild and extract related stuff?
 * Make the info subcommand always give the same output for a section, regardless of whether -t or -o is used.
 	* Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
 * Use std::path::MAIN\_SEPARATOR for Windows support
-* Rather than doing things like turning OsStr into a &str for comparison, turn the &str into an OsStr
 * Refactor everything in main.rs
 * FST.entry\_with\_name seems too complicated, using entries needs to be easier
 * Make a DOL struct, which contains a DOLHeader struct, and would probably contain the segments directly
