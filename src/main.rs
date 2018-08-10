@@ -127,14 +127,14 @@ fn extract_iso(
 
     let output = output.as_ref();
     if output.exists() {
-        eprintln!("Error: {} already exists.", output.display());
-    } else {
-        try_to_open_game(input.as_ref(), 0).map(|(mut game, mut iso)|
-            if let Err(_) = game.extract(&mut iso, output) {
-                eprintln!("Failed to write files.");
-            }
-        );
+        panic!("Error: {} already exists.", output.display());
     }
+
+    try_to_open_game(input.as_ref(), 0).map(|(mut game, mut iso)|
+        if let Err(_) = game.extract(&mut iso, output) {
+            panic!("Failed to write files.");
+        }
+    );
 }
 
 fn print_iso_info(input: impl AsRef<Path>, offset: u64, style: NumberStyle) {
@@ -149,7 +149,7 @@ fn disassemble_dol(
     try_to_open_game(input.as_ref(), 0).map(|(mut game, mut iso)| {
         let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
         if let Err(_) = game.extract_dol(&mut iso, tmp_file.as_mut()) {
-            eprintln!("Could not extract dol.");
+            panic!("Could not extract dol.");
         }
         tmp_file.seek(SeekFrom::Start(0)).unwrap();
         let header = DOLHeader::new(tmp_file.as_mut(), 0)
@@ -162,10 +162,7 @@ fn disassemble_dol(
         let disassembler =
             match Disassembler::objdump_path(objdump_path.as_os_str()) {
                 Ok(d) => d,
-                Err(_) => {
-                    eprintln!("GNU objdump required.");
-                    return;
-                },
+                Err(_) => panic!("GNU objdump required."),
             };
 
         let mut addr = 0;
@@ -198,13 +195,10 @@ fn rebuild_iso(
     let alignment = match alignment {
         Some(a) => match parse_as_u64(a) {
             Ok(a) if a >= MIN_ALIGNMENT => a,
-            _ => {
-                eprintln!(
-                    "Invalid alignment. Must be an integer >= {}",
-                    MIN_ALIGNMENT,
-                );
-                return;
-            },
+            _ => panic!(
+                "Invalid alignment. Must be an integer >= {}",
+                MIN_ALIGNMENT,
+            ),
         },
         None => DEFAULT_ALIGNMENT,
     };
@@ -217,6 +211,7 @@ fn rebuild_iso(
         e.get_ref().map(|e| eprintln!("{}", e));
         drop(iso);
         remove_file(iso_path.as_ref()).unwrap();
+        panic!();
     }
 }
 
@@ -254,10 +249,7 @@ fn print_section_info(
 ) {
     let mut f = match File::open(path.as_ref()) {
         Ok(f) => BufReader::new(f),
-        Err(_) => {
-            eprintln!("Couldn't open file");
-            return;
-        },
+        Err(_) => panic!("Couldn't open file"),
     };
 
     match Game::open(&mut f, 0) {
@@ -276,7 +268,7 @@ fn print_section_info(
         _ => (),
     }
 
-    eprintln!("Invalid file");
+    panic!("Invalid file");
 }
 
 fn print_layout(path: impl AsRef<Path>) {
@@ -288,13 +280,10 @@ fn print_layout(path: impl AsRef<Path>) {
 fn find_offset(header_path: impl AsRef<Path>, offset: &str, style: NumberStyle) {
     let offset = match parse_as_u64(offset) {
         Ok(o) if (o as usize) < ROM_SIZE => o,
-        _ => {
-            eprintln!(
-                "Invalid offset. Offset must be a number > 0 and < {}",
-                format_usize(ROM_SIZE, style),
-            );
-            return;
-        },
+        _ => panic!(
+            "Invalid offset. Offset must be a number > 0 and < {}",
+            format_usize(ROM_SIZE, style),
+        ),
     };
     try_to_open_game(header_path.as_ref(), 0).map(|(game, _)| {
         // TODO: if None, tell if there's no data beyond this point
@@ -302,10 +291,7 @@ fn find_offset(header_path: impl AsRef<Path>, offset: &str, style: NumberStyle) 
         let layout = game.rom_layout();
         let section = match layout.find_offset(offset) {
             Some(s) => s,
-            None => {
-                eprintln!("There isn't any data at this offset.");
-                return;
-            }
+            None => panic!("There isn't any data at this offset."),
         };
 
         section.print_section_info(style);
@@ -320,11 +306,11 @@ fn find_mem_addr(path: impl AsRef<Path>, mem_addr: &str, style: NumberStyle) {
                 println!("Segment: {}", s.name());
                 println!("Offset from start of segment: {}", format_u64(offset, style));
             } else {
-                eprintln!("No DOL segment will be loaded at this address.");
+                panic!("No DOL segment will be loaded at this address.");
             }
         });
     } else {
-        eprintln!("Invalid address. Must be an integer.");
+        panic!("Invalid address. Must be an integer.");
     }
 }
 
@@ -341,8 +327,8 @@ fn extract_section(
         );
         match result {
             Ok(true) => {},
-            Ok(false) => eprintln!("Couldn't find a section with that name."),
-            Err(_) => eprintln!("Error extracting section."),
+            Ok(false) => panic!("Couldn't find a section with that name."),
+            Err(_) => panic!("Error extracting section."),
         }
     });
 }

@@ -26,7 +26,7 @@
 * FST.entry\_with\_name seems too complicated, using entries needs to be easier
 * Make a DOL struct, which contains a DOLHeader struct, and would probably contain the segments directly
 * Add an extract associated function to layout\_section, rename the extract functions to be more meaningful
-* Add more usful, generic stuff to extract\_section, like an error message if the file already exists
+* Add more useful, generic stuff to extract\_section, like an error message if the file already exists
 * Move stuff like consts and functions from src/lib.rs into something like src/utility.rs
 * Keep working on the documentation on Google Docs
 * Set shell exit code/status after failure
