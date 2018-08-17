@@ -7,7 +7,7 @@
 	* Don't print to stdout, but rather a file
 	* Add the ability to pick which segment(s) are disassembled
 	* Sometimes I just want to disassemble a single instruction, add that.
-* Improve the output of rebuild and extract
+* Get rid of the useless Game::extract_\... methods
 * Rename LayoutSection to Section???
 * Use Vec::binary\_search in ROMLayout::find\_offset, find a way to make sure that vec stays sorted (probably by not making it a Vec)
 * Make the section names in `gcmod extract -s` more intuitive
@@ -32,6 +32,7 @@
 * Set shell exit code/status after failure
 
 * Warn if the iso to be rebuilt already exists
+* Refactor the rebuilding process, maybe create a ROMRebuilder struct...
 * Get rid of the `-V/--version` flag from the subcommand's help option, make sure it's only in the main help
 * Add a thing like print\_layout for the dol, that prints brief information about all the segments (support -v for added verbosity)
 * Patch file generator for mods???

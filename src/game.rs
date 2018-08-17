@@ -84,6 +84,8 @@ impl Game {
         let sys_data_path: &Path = sys_data_path.as_ref();
         create_dir(sys_data_path)?;
 
+        println!("Extracting system data...");
+
         let mut header_file = File::create(sys_data_path.join("ISO.hdr"))?;
         self.extract_game_header(&mut iso, &mut header_file)?;
 
@@ -97,19 +99,24 @@ impl Game {
         let mut dol_file = File::create(sys_data_path.join("Start.dol"))?;
         self.extract_dol(&mut iso, &mut dol_file)?;
 
-        self.extract_files(&mut iso, path.as_ref())?;
+        println!("Extracting file system...");
+
+        self.extract_file_system(&mut iso, path.as_ref(), 4)?;
         Ok(())
     }
 
-    pub fn extract_files<R, P>(&mut self, iso: R, path: P) -> io::Result<usize>
-    where
-        R: BufRead + Seek,
-        P: AsRef<Path>,
-    {
-        let count = self.fst.file_count;
-        let res = self.fst.extract_filesystem(path, iso, |c|
-            print!("\r{}/{} files written.", c, count)
-        );
+    pub fn extract_file_system(
+        &mut self,
+        iso: impl BufRead + Seek,
+        path: impl AsRef<Path>,
+        existing_files: usize,
+    ) -> io::Result<usize> {
+        let total = self.fst.file_count + existing_files;
+        let mut count = existing_files;
+        let res = self.fst.extract_file_system(path, iso, |_| {
+            count += 1;
+            print!("\r{}/{} files written.", count, total)
+        });
         println!();
         res
     }
@@ -119,7 +126,6 @@ impl Game {
         iso: impl Read + Seek,
         file: impl Write,
     ) -> io::Result<()> {
-        println!("Writing game header...");
         Header::extract(iso, file)
     }
 
@@ -128,7 +134,6 @@ impl Game {
         R: Read + Seek,
         W: Write,
     {
-        println!("Writing DOL header...");
         DOLHeader::extract(iso, self.header.dol_offset, file)
     }
 
@@ -137,7 +142,6 @@ impl Game {
         R: Read + Seek,
         W: Write,
     {
-        println!("Writing app loader...");
         Apploader::extract(iso, file)
     }
 
@@ -146,7 +150,6 @@ impl Game {
         R: Read + Seek,
         W: Write,
     {
-        println!("Writing file system table...");
         FST::extract(iso, file, self.header.fst_offset)
     }
 
@@ -277,13 +280,17 @@ impl Game {
         let files = Game::make_sections_btree(root_path.as_ref())?;
         let total_files = files.len();
 
-        for (i, (&offset, filename)) in files.iter().enumerate() {
-            write_zeros((offset - bytes_written) as usize, &mut output)?;
-            bytes_written = offset;
+        for (i, &(offset, ref filename)) in files.iter().enumerate() {
             let mut file = File::open(filename)?;
             let size = file.metadata()?.len();
+            if size == 0 { continue }
+
+            write_zeros((offset - bytes_written) as usize, &mut output)?;
+            bytes_written = offset;
+
             extract_section(&mut file, size as usize, &mut output)?;
             bytes_written += size;
+
             if bytes_written as usize > ROM_SIZE {
                 println!();
                 return Err(io::Error::new(
@@ -300,7 +307,7 @@ impl Game {
         write_zeros(ROM_SIZE - bytes_written as usize, &mut output)
     }
 
-    fn make_sections_btree<P>(root: P) -> io::Result<BTreeMap<u64, PathBuf>>
+    fn make_sections_btree<P>(root: P) -> io::Result<Vec<(u64, PathBuf)>>
     where
         P: AsRef<Path>,
     {
@@ -316,10 +323,11 @@ impl Game {
         let fst = FST::new(&mut fst_buf, 0)?;
 
         let mut tree = make_files_btree(root, &fst);
-        tree.insert(0, header_path);
-        tree.insert(APPLOADER_OFFSET, apploader_path);
-        tree.insert(header.fst_offset, fst_path);
-        tree.insert(header.dol_offset, dol_path);
+        tree.push((0, header_path));
+        tree.push((APPLOADER_OFFSET, apploader_path));
+        tree.push((header.fst_offset, fst_path));
+        tree.push((header.dol_offset, dol_path));
+        tree.sort();
 
         Ok(tree)
     }
@@ -340,17 +348,17 @@ fn write_zeros(count: usize, mut output: impl Write) -> io::Result<()> {
     Ok(())
 }
 
-fn make_files_btree<P>(root: P, fst: &FST) -> BTreeMap<u64, PathBuf>
+fn make_files_btree<P>(root: P, fst: &FST) -> Vec<(u64, PathBuf)>
 where
     P: AsRef<Path>,
 {
-    let mut files = BTreeMap::new();
+    let mut files = Vec::new();
     fill_files_btree(&mut files, fst.entries[0].as_dir().unwrap(), root, fst);
     files
 }
 
 fn fill_files_btree(
-    files: &mut BTreeMap<u64, PathBuf>,
+    files: &mut Vec<(u64, PathBuf)>,
     dir: &DirectoryEntry,
     prefix: impl AsRef<Path>,
     fst: &FST,
@@ -358,10 +366,10 @@ fn fill_files_btree(
     for entry in dir.iter_contents(&fst.entries) {
         match entry {
             Entry::File(ref file) => {
-                files.insert(
+                files.push((
                     file.file_offset,
                     prefix.as_ref().join(&file.info.name),
-                );
+                ));
             },
             Entry::Directory(ref sub_dir) => {
                 fill_files_btree(
@@ -375,6 +383,7 @@ fn fill_files_btree(
     }
 }
 
+// Use BinaryHeap?
 pub struct ROMLayout<'a>(Vec<&'a LayoutSection<'a>>);
 
 impl<'a> ROMLayout<'a> {

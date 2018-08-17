@@ -124,11 +124,11 @@ impl FST {
         self.entries[0].as_dir().unwrap()
     }
 
-    pub fn extract_filesystem(
+    pub fn extract_file_system(
         &mut self, 
         path: impl AsRef<Path>,
         iso: impl BufRead + Seek,
-        callback: impl Fn(usize),
+        callback: impl FnMut(usize),
     ) -> io::Result<usize> {
         self.entries[0].extract_with_name(path, &self.entries, iso, callback)
     }
@@ -264,6 +264,8 @@ impl FST {
                 rb_info.entries[index].as_dir_mut().unwrap().next_index +=
                     rb_info.entries.len() - count_before;
             } else {
+                // As noted in `rebuild`, this `file_offset` is not
+                // the final offset. It'd be added to later.
                 let entry = Entry::File(FileEntry {
                     info,
                     file_offset: rb_info.file_offset,
