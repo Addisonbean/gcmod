@@ -13,7 +13,7 @@ use sections::fst::FST;
 use sections::fst::entry::{DirectoryEntry, Entry};
 use sections::header::{GAME_HEADER_SIZE, Header};
 use sections::layout_section::{LayoutSection, UniqueLayoutSection, UniqueSectionType};
-use ::{DEFAULT_ALIGNMENT, extract_section, format_u64, format_usize, NumberStyle, WRITE_CHUNK_SIZE};
+use ::{DEFAULT_ALIGNMENT, extract_section, format_u64, NumberStyle, WRITE_CHUNK_SIZE};
 
 pub const ROM_SIZE: usize = 0x57058000;
 
@@ -214,11 +214,7 @@ impl Game {
     pub fn print_info(&self, style: NumberStyle) {
         println!("Title: {}", self.header.title);
         println!("GameID: {}{}", self.header.game_code, self.header.maker_code);
-        println!("FST offset: {}", format_u64(self.header.fst_offset, style));
-        println!("FST size: {} bytes", format_usize(self.fst.size, style));
-        println!("Main DOL offset: {}", format_u64(self.header.dol_offset, style));
-        println!("Main DOL entry point: {}", format_u64(self.dol.entry_point, style));
-        println!("Apploader size: {}", format_usize(self.apploader.total_size(), style));
+        println!("Version: {}", format_u64(self.header.version as u64, style));
 
         println!("\nROM Layout:");
         self.print_layout();

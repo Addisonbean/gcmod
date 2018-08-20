@@ -15,7 +15,7 @@
 	* Find a better way to use clap, try the macros
 * Add a way to install it (then add that to the readme)
 * Explain Rust style guidelines (basically it's the official guidelines except for matches and explain how to break function signatures)
-* Make the info command give more useful info, and less useless info (plus add verbosity levels with -v, -vv, and so on...)
+* Make the info command give more useful info (plus add verbosity levels with -v, -vv, and so on...)
 * LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc...
 * Add an offset param to extract\_section
 * Add more methods to layout\_section, like rebuild and extract related stuff?
