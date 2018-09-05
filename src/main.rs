@@ -93,7 +93,11 @@ fn main() {
                 cmd.value_of("type"),
                 cmd.value_of("offset"),
                 cmd.value_of("mem_addr"),
-                should_use_hex(cmd.is_present("hex_output")),
+                if cmd.is_present("hex_output") {
+                    NumberStyle::Hexadecimal
+                } else {
+                    NumberStyle::Decimal
+                },
             ),
         ("disasm", Some(cmd)) =>
             disassemble_dol(
@@ -109,10 +113,6 @@ fn main() {
             ),
         _ => (),
     }
-}
-
-fn should_use_hex(b: bool) -> NumberStyle {
-    if b { NumberStyle::Hexadecimal } else { NumberStyle::Decimal }
 }
 
 fn extract_iso(

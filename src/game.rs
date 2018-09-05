@@ -1,5 +1,4 @@
 use std::cmp;
-use std::cmp::Ordering::*;
 use std::collections::BTreeMap;
 use std::fs::{create_dir, File};
 use std::io::{self, BufRead, BufReader, Read, Seek, Write};
@@ -56,11 +55,9 @@ impl Game {
 
         layout.push(&self.dol);
 
-        for e in self.dol.iter_segments() {
-            if e.size != 0 {
-                layout.push(e);
-            }
-        }
+        layout.extend(
+            self.dol.iter_segments().map(|s| s as &dyn LayoutSection)
+        );
 
         layout.push(&self.fst);
 
