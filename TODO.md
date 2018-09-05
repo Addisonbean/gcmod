@@ -9,7 +9,7 @@
 	* Sometimes I just want to disassemble a single instruction, add that.
 * Get rid of the useless Game::extract_\... methods
 * Rename LayoutSection to Section???
-* Use Vec::binary\_search in ROMLayout::find\_offset, find a way to make sure that vec stays sorted (probably by not making it a Vec)
+* Should ROMLayout have a BinaryHeap instead of a Vec?
 * Make the section names in `gcmod extract -s` more intuitive
 * Fix the style to be consistent with the official Rust style guide
 	* Find a better way to use clap, try the macros
@@ -64,7 +64,6 @@
 * Add a command to disassemble an iso, plus an option to only disassemble a given dol file
 * Add options or commands specifically for apploaders, dol files, etc... so the whole iso isn't needed
 * Add a GCRebuilder compatibility mode (this'd just add weird extra zeros to some files, but that may not even be necessary idk)
-* Improve the info subcommand output
 * Anything in the source with a `TODO: ` label
 * Make consts for the default system data path and the files in there
 	* Maybe a property of Game that stores the filenames?

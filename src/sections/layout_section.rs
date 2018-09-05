@@ -37,9 +37,9 @@ pub trait LayoutSection<'a> {
     }
 
     fn compare_offset(&self, offset: u64) -> Ordering {
-        if offset < self.start() {
+        if self.end() < offset {
             Less
-        } else if offset > self.end() {
+        } else if self.start() > offset {
             Greater
         } else {
             Equal

@@ -384,19 +384,8 @@ pub struct ROMLayout<'a>(Vec<&'a LayoutSection<'a>>);
 
 impl<'a> ROMLayout<'a> {
     pub fn find_offset(&'a self, offset: u64) -> Option<&'a LayoutSection<'a>> {
-        // I don't use `Iterator::find` here because I can't break early once
-        // a section is passed that has a greater starting offset than `offset`
-
-        // Also, is there some builtin iterator or something that'll do this?
-        // Probably...
-        for s in &self.0 {
-            match s.compare_offset(offset) {
-                Less => return None,
-                Equal => return Some(*s),
-                Greater => (),
-            }
-        }
-        None
+        self.0.binary_search_by(|s| s.compare_offset(offset)).ok()
+            .map(|i| self.0[i])
     }
 
     pub fn len(&self) -> usize {
