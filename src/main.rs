@@ -145,9 +145,9 @@ fn disassemble_dol(
     input: impl AsRef<Path>,
     objdump_path: Option<impl AsRef<Path>>
 ) {
-    try_to_open_game(input.as_ref(), 0).map(|(mut game, mut iso)| {
+    try_to_open_game(input.as_ref(), 0).map(|(game, mut iso)| {
         let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
-        if let Err(_) = game.extract_dol(&mut iso, tmp_file.as_mut()) {
+        if let Err(_) = DOLHeader::extract(&mut iso, tmp_file.as_mut(), game.dol.offset) {
             panic!("Could not extract dol.");
         }
         tmp_file.seek(SeekFrom::Start(0)).unwrap();

@@ -121,7 +121,7 @@ impl DOLHeader {
         self.segments.iter()
     }
 
-    pub fn extract<R, W>(mut iso: R, dol_addr: u64, file: W) -> io::Result<()>
+    pub fn extract<R, W>(mut iso: R, file: W, dol_addr: u64) -> io::Result<()>
     where
         R: Read + Seek,
         W: Write,

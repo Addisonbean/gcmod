@@ -7,7 +7,6 @@
 	* Don't print to stdout, but rather a file
 	* Add the ability to pick which segment(s) are disassembled
 	* Sometimes I just want to disassemble a single instruction, add that.
-* Get rid of the useless Game::extract_\... methods
 * Rename LayoutSection to Section???
 * Should ROMLayout have a BinaryHeap instead of a Vec?
 * Make the section names in `gcmod extract -s` more intuitive

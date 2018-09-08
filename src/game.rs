@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::fs::{create_dir, File};
-use std::io::{self, BufRead, Read, Seek, Write};
+use std::io::{self, BufRead, Seek};
 use std::path::Path;
 
 use sections::apploader::{Apploader, APPLOADER_OFFSET};
@@ -80,18 +80,17 @@ impl Game {
 
         println!("Extracting system data...");
 
-        let mut header_file = File::create(sys_data_path.join("ISO.hdr"))?;
-        self.extract_game_header(&mut iso, &mut header_file)?;
+        let header_file = File::create(sys_data_path.join("ISO.hdr"))?;
+        Header::extract(&mut iso, header_file)?;
 
-        let mut fst_file = File::create(sys_data_path.join("Game.toc"))?;
-        self.extract_fst(&mut iso, &mut fst_file)?;
+        let fst_file = File::create(sys_data_path.join("Game.toc"))?;
+        FST::extract(&mut iso, fst_file, self.fst.offset)?;
 
-        let mut apploader_file =
-            File::create(sys_data_path.join("Apploader.ldr"))?;
-        self.extract_apploader(&mut iso, &mut apploader_file)?;
+        let apploader_file = File::create(sys_data_path.join("Apploader.ldr"))?;
+        Apploader::extract(&mut iso, apploader_file)?;
 
         let mut dol_file = File::create(sys_data_path.join("Start.dol"))?;
-        self.extract_dol(&mut iso, &mut dol_file)?;
+        DOLHeader::extract(&mut iso, &mut dol_file, self.dol.offset)?;
 
         println!("Extracting file system...");
 
@@ -113,38 +112,6 @@ impl Game {
         });
         println!();
         res
-    }
-
-    pub fn extract_game_header(
-        &mut self,
-        iso: impl Read + Seek,
-        file: impl Write,
-    ) -> io::Result<()> {
-        Header::extract(iso, file)
-    }
-
-    pub fn extract_dol<R, W>(&mut self, iso: R, file: W) -> io::Result<()>
-    where
-        R: Read + Seek,
-        W: Write,
-    {
-        DOLHeader::extract(iso, self.header.dol_offset, file)
-    }
-
-    pub fn extract_apploader<R, W>(&mut self, iso: R, file: W) -> io::Result<()>
-    where
-        R: Read + Seek,
-        W: Write,
-    {
-        Apploader::extract(iso, file)
-    }
-
-    pub fn extract_fst<R, W>(&mut self, iso: R, file: W) -> io::Result<()>
-    where
-        R: Read + Seek,
-        W: Write,
-    {
-        FST::extract(iso, file, self.header.fst_offset)
     }
 
     pub fn get_section_by_type(
@@ -177,8 +144,8 @@ impl Game {
             "&&systemdata/Start.dol" =>
                 DOLHeader::extract(
                     iso,
-                    self.dol.offset,
                     &mut File::create(output)?,
+                    self.dol.offset,
                 ).map(|_| true),
             "&&systemdata/Game.toc" =>
                 FST::extract(iso, &mut File::create(output)?, self.fst.offset)
