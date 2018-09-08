@@ -202,6 +202,10 @@ fn rebuild_iso(
         None => DEFAULT_ALIGNMENT,
     };
 
+    if iso_path.as_ref().exists() {
+        panic!("{} already exists.", &*iso_path.as_ref().to_string_lossy());
+    }
+
     let iso = File::create(iso_path.as_ref()).unwrap(); 
     if let Err(e) =
         ROMRebuilder::rebuild(root_path, alignment, iso, rebuild_systemdata)

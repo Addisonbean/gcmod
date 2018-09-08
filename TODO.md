@@ -18,7 +18,6 @@
 * Make the info command give more useful info (plus add verbosity levels with -v, -vv, and so on...)
 * LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc...
 * Add an offset param to extract\_section
-* Add more methods to layout\_section, like rebuild and extract related stuff?
 * Make the info subcommand always give the same output for a section, regardless of whether -t or -o is used.
 	* Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
 * Use std::path::MAIN\_SEPARATOR for Windows support
@@ -31,8 +30,6 @@
 * Keep working on the documentation on Google Docs
 * Set shell exit code/status after failure
 
-* Warn if the iso to be rebuilt already exists
-* Refactor the rebuilding process, maybe create a ROMRebuilder struct...
 * Get rid of the `-V/--version` flag from the subcommand's help option, make sure it's only in the main help
 * Add a thing like print\_layout for the dol, that prints brief information about all the segments (support -v for added verbosity)
 * Patch file generator for mods???
