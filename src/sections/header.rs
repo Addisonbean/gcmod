@@ -2,16 +2,12 @@
 // http://hitmen.c02.at/files/yagcd/yagcd/chap13.html
 
 use std::borrow::Cow;
-use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
-use std::path::Path;
+use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-use sections::apploader::APPLOADER_OFFSET;
-use sections::fst::FST;
 use sections::layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
-use ::{align, extract_section, format_u64, format_usize, NumberStyle};
+use ::{extract_section, format_u64, format_usize, NumberStyle};
 
 pub const GAME_HEADER_SIZE: usize = 0x2440;
 
@@ -262,37 +258,6 @@ impl Header {
         writer.write_all(&buf[..])?;
 
         Ok(())
-    }
-
-    pub fn rebuild(root_path: impl AsRef<Path>, alignment: u64) -> io::Result<Header> {
-        // apploader -> fst -> dol -> fs
-        let appldr_path = root_path.as_ref().join("&&systemdata/Apploader.ldr");
-        let appldr_file = File::open(appldr_path)?;
-        let appldr_size = appldr_file.metadata()?.len();
-
-        let fst_path = root_path.as_ref().join("&&systemdata/Game.toc");
-        let fst_path: &Path = fst_path.as_ref();
-        let fst_file = File::open(fst_path)?;
-        let fst_file_size = fst_file.metadata()?.len();
-        let mut fst_file = BufReader::new(File::open(fst_path)?);
-        let fst_size = FST::new(&mut fst_file, 0)?.size;
-
-        let fst_offset =
-            align(APPLOADER_OFFSET + appldr_size as u64, alignment);
-        let dol_offset = align(fst_offset + fst_file_size as u64, alignment);
-
-        let header_path = root_path.as_ref().join("&&systemdata/ISO.hdr");
-        let mut header_buf = BufReader::new(File::open(header_path)?);
-        let mut header = Header::new(&mut header_buf, 0)?;
-
-        header.dol_offset = dol_offset as u64;
-        header.fst_offset = fst_offset as u64;
-        header.fst_size = fst_size;
-
-        // TODO: Is this okay to assume?
-        header.max_fst_size = fst_size;
-
-        Ok(header)
     }
 }
 

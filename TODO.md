@@ -43,6 +43,7 @@
 * Make a function like Game::is\_valid\_rom that checks to see if it has the magic byte and if it's the right size?
 * Add an option to rebuild that doesn't rebuild the &&systemdata directory (should that be the default? probably?)
 * Improve error messages
+	* Add error for file permission errors
 * Be smart about the order that files are put onto a rom, to save space (this only matters with a significant alignment)
 	* Then display available free space after creating a rom
 

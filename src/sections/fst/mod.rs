@@ -4,34 +4,23 @@ use std::borrow::Cow;
 use std::cmp::max;
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
-use std::fs::{File, read_dir};
 use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use byteorder::{BigEndian, ReadBytesExt};
 
-use sections::apploader::APPLOADER_OFFSET;
 use sections::layout_section::{
     LayoutSection,
     SectionType,
     UniqueLayoutSection,
     UniqueSectionType
 };
-use ::{align, extract_section, format_u64, format_usize, NumberStyle};
+use ::{extract_section, format_u64, format_usize, NumberStyle};
 
-use self::entry::{DirectoryEntry, Entry, EntryInfo, ENTRY_SIZE, FileEntry};
+use self::entry::{DirectoryEntry, Entry, EntryInfo, ENTRY_SIZE};
 
 pub const FST_OFFSET_OFFSET: u64 = 0x0424; 
 pub const FST_SIZE_OFFSET: u64 = 0x0428;
-
-struct RebuildInfo {
-    entries: Vec<Entry>,
-    file_offset: u64,
-    filename_offset: u64,
-    file_count: usize,
-    parent_index: Option<usize>,
-    current_path: PathBuf,
-}
 
 #[derive(Debug)]
 pub struct FST {
@@ -143,141 +132,6 @@ impl FST {
 
         iso.seek(SeekFrom::Start(fst_offset))?;
         extract_section(iso, size, file)
-    }
-
-    pub fn rebuild<P>(root_path: P, alignment: u64) -> io::Result<FST>
-    where
-        P: AsRef<Path>,
-    {
-        let ldr_path = root_path.as_ref().join("&&systemdata/Apploader.ldr");
-        let appldr_size = File::open(ldr_path)?.metadata()?.len();
-
-        let dol_path = root_path.as_ref().join("&&systemdata/Start.dol");
-        let dol_size = File::open(dol_path)?.metadata()?.len() as u64;
-
-        // ISO layout
-        // Header -> apploader -> fst -> dol -> fs
-
-        let root_entry = Entry::Directory(DirectoryEntry {
-            info: EntryInfo {
-                index: 0,
-                name: "/".to_owned(),
-                filename_offset: 0,
-                directory_index: None,
-                full_path: "/".into(),
-            },
-            parent_index: 0,
-            // this value will need to be updated later on
-            next_index: 0,
-        });
-        let mut rb_info = RebuildInfo {
-            entries: vec![root_entry],
-            // Later in this function, `file_offset` will be offset more
-            // once the fst size is known (with the `extra` variable)
-            file_offset: 0,
-            filename_offset: 0,
-            file_count: 0,
-            parent_index: None,
-            current_path: "/".into(),
-        };
-
-        FST::rebuild_dir_info(root_path.as_ref(), &mut rb_info, alignment)?;
-
-        rb_info.entries[0].as_dir_mut().unwrap().next_index =
-            rb_info.entries.len();
-
-        let size = 
-            rb_info.entries.len() * 12 + rb_info.filename_offset as usize;
-        let total_file_system_size = rb_info.file_offset as usize;
-
-        let offset = align(APPLOADER_OFFSET + appldr_size as u64, alignment);
-        let extra = offset +
-            align(size as u64, alignment) +
-            align(dol_size, alignment);
-
-        for e in &mut rb_info.entries {
-            if let Some(ref mut f) = e.as_file_mut() {
-                f.file_offset += extra;
-            }
-        }
-
-        Ok(FST {
-            offset,
-            file_count: rb_info.file_count,
-            entries: rb_info.entries,
-            total_file_system_size,
-            size,
-        })
-    }
-
-    // this needs to be documented, specifically how rb_info is being used
-    // it's also a mess...
-    fn rebuild_dir_info(
-        path: impl AsRef<Path>,
-        rb_info: &mut RebuildInfo,
-        alignment: u64,
-    ) -> io::Result<()> {
-        for e in read_dir(path.as_ref())? {
-            let e = e?;
-
-            // TODO: don't keep calling e.file_name(), store it somewhere
-
-            if e.file_name().to_str().map(|s| s.starts_with("."))
-                .unwrap_or(false)
-                || e.file_name().to_str() == Some("&&systemdata")
-            {
-                continue
-            }
-
-            let mut full_path = rb_info.current_path.clone();
-            full_path.push(e.file_name());
-            let index = rb_info.entries.len() as usize;
-            let info = EntryInfo {
-                index,
-                name: e.file_name().to_string_lossy().into_owned(),
-                filename_offset: rb_info.filename_offset,
-                directory_index: rb_info.parent_index,
-                full_path,
-            };
-            // plus 1 for the null byte
-            rb_info.filename_offset += info.name.chars().count() as u64 + 1;
-
-            if e.file_type()?.is_dir() {
-                let old_index = rb_info.parent_index;
-
-                let entry = Entry::Directory(DirectoryEntry {
-                    info,
-                    parent_index: old_index.unwrap_or(0),
-                    next_index: index + 1
-                });
-                let index = rb_info.entries.len();
-                rb_info.entries.push(entry);
-
-                rb_info.parent_index = Some(index);
-                rb_info.current_path.push(e.file_name());
-                let count_before = rb_info.entries.len();
-
-                FST::rebuild_dir_info(e.path(), rb_info, alignment)?;
-
-                rb_info.parent_index = old_index;
-                rb_info.current_path.pop();
-                rb_info.entries[index].as_dir_mut().unwrap().next_index +=
-                    rb_info.entries.len() - count_before;
-            } else {
-                // As noted in `rebuild`, this `file_offset` is not
-                // the final offset. It'd be added to later.
-                let entry = Entry::File(FileEntry {
-                    info,
-                    file_offset: rb_info.file_offset,
-                    size: e.metadata()?.len() as usize,
-                });
-                rb_info.file_offset +=
-                    align(entry.as_file().unwrap().size as u64, alignment);
-                rb_info.file_count += 1;
-                rb_info.entries.push(entry);
-            }
-        }
-        Ok(())
     }
 
     pub fn write(&self, mut writer: impl Write) -> io::Result<()> {

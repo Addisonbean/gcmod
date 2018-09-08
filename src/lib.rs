@@ -16,6 +16,9 @@ pub use game::ROM_SIZE;
 
 pub mod sections;
 
+mod rom_rebuilder;
+pub use rom_rebuilder::ROMRebuilder;
+
 // 1048576 = 2^20 = 1MiB, there's no real good reason behind this choice
 pub const WRITE_CHUNK_SIZE: usize = 1048576; 
 

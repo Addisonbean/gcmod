@@ -1,18 +1,15 @@
-use std::cmp;
 use std::collections::BTreeMap;
 use std::fs::{create_dir, File};
-use std::io::{self, BufRead, BufReader, Read, Seek, Write};
-use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::io::{self, BufRead, Read, Seek, Write};
+use std::path::Path;
 
 use sections::apploader::{Apploader, APPLOADER_OFFSET};
 use sections::dol::DOLHeader;
 use sections::dol::segment::Segment;
 use sections::fst::FST;
-use sections::fst::entry::{DirectoryEntry, Entry};
 use sections::header::{GAME_HEADER_SIZE, Header};
 use sections::layout_section::{LayoutSection, UniqueLayoutSection, UniqueSectionType};
-use ::{DEFAULT_ALIGNMENT, extract_section, format_u64, NumberStyle, WRITE_CHUNK_SIZE};
+use ::{format_u64, NumberStyle};
 
 pub const ROM_SIZE: usize = 0x57058000;
 
@@ -220,7 +217,7 @@ impl Game {
     pub fn print_layout(&self) {
         let mut regions = BTreeMap::new();
 
-        // format: regions.insert(start, (size, name));
+        // Format: regions.insert(start, (size, name));
         regions.insert(0, (GAME_HEADER_SIZE, "ISO.hdr"));
         regions.insert(
             APPLOADER_OFFSET,
@@ -236,145 +233,8 @@ impl Game {
             println!("{:#010x}-{:#010x}: {}", start, start + end as u64, name);
         }
     }
-
-    pub fn rebuild_systemdata(
-        root_path: impl AsRef<Path>,
-        alignment: u64,
-    ) -> io::Result<()> {
-        // Apploader.ldr and Start.dol must exist before rebuilding Game.toc
-
-        let fst_path = root_path.as_ref().join("&&systemdata/Game.toc");
-        let mut fst_file = File::create(fst_path)?;
-        FST::rebuild(root_path.as_ref(), alignment)?.write(&mut fst_file)?;
-
-        // Note: everything else must be rebuilt before the header can be,
-        // and the old header must still exist
-
-        let h = Header::rebuild(root_path.as_ref(), alignment)?;
-        let header_path = root_path.as_ref().join("&&systemdata/ISO.hdr");
-        let mut header_file = File::create(header_path)?;
-        h.write(&mut header_file)?;
-
-        Ok(())
-    }
-
-    pub fn rebuild(
-        root_path: impl AsRef<Path>,
-        mut output: impl Write,
-        alignment: u64,
-        rebuild_files: bool,
-    ) -> io::Result<()> {
-        let mut bytes_written = 0;
-
-        if rebuild_files {
-            Game::rebuild_systemdata(root_path.as_ref(), alignment)?;
-        }
-
-        let files = Game::make_sections_btree(root_path.as_ref())?;
-        let total_files = files.len();
-
-        for (i, &(offset, ref filename)) in files.iter().enumerate() {
-            let mut file = File::open(filename)?;
-            let size = file.metadata()?.len();
-            if size == 0 { continue }
-
-            write_zeros((offset - bytes_written) as usize, &mut output)?;
-            bytes_written = offset;
-
-            extract_section(&mut file, size as usize, &mut output)?;
-            bytes_written += size;
-
-            if bytes_written as usize > ROM_SIZE {
-                println!();
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!(
-                        "Error: not enough space. Try decreasing the file alignment with the -a option (the default is {} bytes).",
-                        DEFAULT_ALIGNMENT,
-                    ),
-                ));
-            }
-            print!("\r{}/{} files added.", i + 1, total_files);
-        }
-        println!();
-        write_zeros(ROM_SIZE - bytes_written as usize, &mut output)
-    }
-
-    fn make_sections_btree<P>(root: P) -> io::Result<Vec<(u64, PathBuf)>>
-    where
-        P: AsRef<Path>,
-    {
-        let root = root.as_ref();
-        let header_path = root.join("&&systemdata/ISO.hdr");
-        let fst_path = root.join("&&systemdata/Game.toc");
-        let apploader_path = root.join("&&systemdata/Apploader.ldr");
-        let dol_path = root.join("&&systemdata/Start.dol");
-
-        let mut header_buf = BufReader::new(File::open(&header_path)?);
-        let header = Header::new(&mut header_buf, 0)?;
-        let mut fst_buf = BufReader::new(File::open(&fst_path)?);
-        let fst = FST::new(&mut fst_buf, 0)?;
-
-        let mut tree = make_files_btree(root, &fst);
-        tree.push((0, header_path));
-        tree.push((APPLOADER_OFFSET, apploader_path));
-        tree.push((header.fst_offset, fst_path));
-        tree.push((header.dol_offset, dol_path));
-        tree.sort();
-
-        Ok(tree)
-    }
 }
 
-fn write_zeros(count: usize, mut output: impl Write) -> io::Result<()> {
-    lazy_static! {
-        static ref ZEROS: Mutex<Vec<u8>> = Mutex::new(vec![]);
-    }
-    let mut zeros = ZEROS.lock().unwrap();
-    let block_size = cmp::min(count, WRITE_CHUNK_SIZE);
-    zeros.resize(block_size, 0);
-    for i in 0..(count / WRITE_CHUNK_SIZE + 1) {
-        (&mut output).write_all(
-            &zeros[..cmp::min(WRITE_CHUNK_SIZE, count - WRITE_CHUNK_SIZE * i)]
-        )?;
-    }
-    Ok(())
-}
-
-fn make_files_btree<P>(root: P, fst: &FST) -> Vec<(u64, PathBuf)>
-where
-    P: AsRef<Path>,
-{
-    let mut files = Vec::new();
-    fill_files_btree(&mut files, fst.entries[0].as_dir().unwrap(), root, fst);
-    files
-}
-
-fn fill_files_btree(
-    files: &mut Vec<(u64, PathBuf)>,
-    dir: &DirectoryEntry,
-    prefix: impl AsRef<Path>,
-    fst: &FST,
-) {
-    for entry in dir.iter_contents(&fst.entries) {
-        match entry {
-            Entry::File(ref file) => {
-                files.push((
-                    file.file_offset,
-                    prefix.as_ref().join(&file.info.name),
-                ));
-            },
-            Entry::Directory(ref sub_dir) => {
-                fill_files_btree(
-                    files,
-                    sub_dir,
-                    prefix.as_ref().join(&sub_dir.info.name),
-                    fst,
-                );
-            },
-        };
-    }
-}
 
 // Use BinaryHeap?
 pub struct ROMLayout<'a>(Vec<&'a LayoutSection<'a>>);

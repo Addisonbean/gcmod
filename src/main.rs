@@ -5,7 +5,6 @@ extern crate tempfile;
 use std::env;
 use std::fs::{remove_file, File};
 use std::io::{BufReader, Seek, SeekFrom};
-use std::mem::drop;
 use std::path::{Path, PathBuf};
 
 use clap::{App, Arg, SubCommand, AppSettings};
@@ -20,7 +19,7 @@ use gcmod::{
     parse_as_u64,
     ROM_SIZE,
 };
-use gcmod::Disassembler;
+use gcmod::{Disassembler, ROMRebuilder};
 use gcmod::sections::{
     dol::DOLHeader,
     layout_section::{LayoutSection, UniqueSectionType}
@@ -203,13 +202,12 @@ fn rebuild_iso(
         None => DEFAULT_ALIGNMENT,
     };
 
-    let mut iso = File::create(iso_path.as_ref()).unwrap(); 
+    let iso = File::create(iso_path.as_ref()).unwrap(); 
     if let Err(e) =
-        Game::rebuild(root_path.as_ref(), &mut iso, alignment, rebuild_systemdata)
+        ROMRebuilder::rebuild(root_path, alignment, iso, rebuild_systemdata)
     {
         eprintln!("Couldn't rebuild iso.");
         e.get_ref().map(|e| eprintln!("{}", e));
-        drop(iso);
         remove_file(iso_path.as_ref()).unwrap();
         panic!();
     }
