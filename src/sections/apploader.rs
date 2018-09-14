@@ -9,7 +9,14 @@ use sections::layout_section::{
     UniqueLayoutSection,
     UniqueSectionType,
 };
-use ::{align, extract_section, format_u64, format_usize, NumberStyle};
+use ::{
+    align,
+    extract_section,
+    format_u64,
+    format_usize,
+    NumberStyle,
+    paths::APPLOADER_PATH,
+};
 
 pub const APPLOADER_OFFSET: u64 = 0x2440;
 const APPLOADER_DATE_SIZE: usize = 0x0A;
@@ -71,7 +78,7 @@ impl Apploader {
 
 impl<'a> LayoutSection<'a> for Apploader {
     fn name(&self) -> Cow<'static, str> {
-        "&&systemdata/Apploader.hdr".into()
+        APPLOADER_PATH.into()
     }
 
     fn section_type(&self) -> SectionType {

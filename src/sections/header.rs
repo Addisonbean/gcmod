@@ -7,7 +7,13 @@ use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 use sections::layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
-use ::{extract_section, format_u64, format_usize, NumberStyle};
+use ::{
+    extract_section,
+    format_u64,
+    format_usize,
+    NumberStyle,
+    paths::HEADER_PATH,
+};
 
 pub const GAME_HEADER_SIZE: usize = 0x2440;
 
@@ -263,7 +269,7 @@ impl Header {
 
 impl<'a> LayoutSection<'a> for Header {
     fn name(&'a self) -> Cow<'a, str> {
-        "&&systemdata/ISO.hdr".into()
+        HEADER_PATH.into()
     }
 
     fn section_type(&self) -> SectionType {

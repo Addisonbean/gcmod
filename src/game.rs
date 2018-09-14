@@ -9,7 +9,11 @@ use sections::dol::segment::Segment;
 use sections::fst::FST;
 use sections::header::{GAME_HEADER_SIZE, Header};
 use sections::layout_section::{LayoutSection, UniqueLayoutSection, UniqueSectionType};
-use ::{format_u64, NumberStyle};
+use ::{
+    format_u64,
+    NumberStyle,
+    paths::*,
+};
 
 pub const ROM_SIZE: usize = 0x57058000;
 
@@ -136,18 +140,18 @@ impl Game {
         let output = output.as_ref();
         let filename = &*filename.as_ref().to_string_lossy();
         match filename {
-            "&&systemdata/ISO.hdr" =>
+            HEADER_PATH =>
                 Header::extract(iso, &mut File::create(output)?).map(|_| true),
-            "&&systemdata/Apploader.ldr" =>
+            APPLOADER_PATH =>
                 Apploader::extract(iso, &mut File::create(output)?)
                     .map(|_| true),
-            "&&systemdata/Start.dol" =>
+            DOL_PATH =>
                 DOLHeader::extract(
                     iso,
                     &mut File::create(output)?,
                     self.dol.offset,
                 ).map(|_| true),
-            "&&systemdata/Game.toc" =>
+            FST_PATH =>
                 FST::extract(iso, &mut File::create(output)?, self.fst.offset)
                     .map(|_| true),
             _ => {

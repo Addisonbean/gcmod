@@ -10,7 +10,13 @@ use sections::fst::{
     entry::{DirectoryEntry, Entry, EntryInfo, FileEntry},
 };
 use sections::header::Header;
-use ::{align, DEFAULT_ALIGNMENT, extract_section, WRITE_CHUNK_SIZE};
+use ::{
+    align,
+    DEFAULT_ALIGNMENT,
+    extract_section,
+    paths::*,
+    WRITE_CHUNK_SIZE,
+};
 
 pub const ROM_SIZE: usize = 0x57058000;
 
@@ -45,10 +51,10 @@ impl<'a> FSTRebuilder<'a> {
     where
         P: AsRef<Path>,
     {
-        let apploader = File::open(root.as_ref().join("&&systemdata/Apploader.ldr"))?;
+        let apploader = File::open(root.as_ref().join(APPLOADER_PATH))?;
         let apploader_size = apploader.metadata()?.len() as usize;
 
-        let dol = File::open(root.as_ref().join("&&systemdata/Start.dol"))?;
+        let dol = File::open(root.as_ref().join(DOL_PATH))?;
         let dol_size = dol.metadata()?.len() as usize;
 
         Ok(FSTRebuilder {
@@ -110,7 +116,7 @@ impl<'a> FSTRebuilder<'a> {
             total_file_system_size: rb_info.file_offset as usize,
             size,
         };
-        let fst_path = self.config.root.join("&&systemdata/Game.toc");
+        let fst_path = self.config.root.join(FST_PATH);
         fst.write(File::create(&fst_path)?)?;
 
         Ok(HeaderRebuilder {
@@ -197,7 +203,7 @@ struct HeaderRebuilder<'a> {
 
 impl<'a> HeaderRebuilder<'a> {
    fn rebuild(self) -> io::Result<FileSystemRebuilder<'a>> {
-        let header_path = self.config.root.join("&&systemdata/ISO.hdr");
+        let header_path = self.config.root.join(HEADER_PATH);
         let header_buf = BufReader::new(File::open(&header_path)?);
         let mut header = Header::new(header_buf, 0)?;
 
@@ -226,10 +232,10 @@ struct FileSystemRebuilder<'a> {
 
 impl<'a> FileSystemRebuilder<'a> {
     fn rebuild(mut self) -> io::Result<ROMRebuilder> {
-        let apploader_path = self.config.root.join("&&systemdata/Apploader.ldr");
-        let dol_path = self.config.root.join("&&systemdata/Start.dol");
-        let fst_path = self.config.root.join("&&systemdata/Game.toc");
-        let header_path = self.config.root.join("&&systemdata/ISO.hdr");
+        let apploader_path = self.config.root.join(APPLOADER_PATH);
+        let dol_path = self.config.root.join(DOL_PATH);
+        let fst_path = self.config.root.join(FST_PATH);
+        let header_path = self.config.root.join(HEADER_PATH);
 
         self.config.files.push((APPLOADER_OFFSET, apploader_path));
         self.config.files.push((self.header.dol_offset, dol_path));
@@ -285,8 +291,8 @@ impl ROMRebuilder {
                 .rebuild()?
                 .write(output)
         } else {
-            let fst_file = File::open(root.as_ref().join("&&systemdata/Game.toc"))?;
-            let header_file = File::open(root.as_ref().join("&&systemdata/ISO.hdr"))?;
+            let fst_file = File::open(root.as_ref().join(FST_PATH))?;
+            let header_file = File::open(root.as_ref().join(HEADER_PATH))?;
             let fst = FST::new(BufReader::new(fst_file), 0)?;
             let header = Header::new(BufReader::new(header_file), 0)?;
             FileSystemRebuilder {

@@ -26,6 +26,13 @@ pub const WRITE_CHUNK_SIZE: usize = 1048576;
 pub const DEFAULT_ALIGNMENT: u64 = 32 * 1024; 
 pub const MIN_ALIGNMENT: u64 = 4;
 
+pub mod paths {
+    pub const APPLOADER_PATH: &'static str = "&&systemdata/Apploader.ldr";
+    pub const DOL_PATH: &'static str = "&&systemdata/Start.dol";
+    pub const FST_PATH: &'static str = "&&systemdata/Game.toc";
+    pub const HEADER_PATH: &'static str = "&&systemdata/ISO.hdr";
+}
+
 pub fn extract_section(
     mut iso: impl Read,
     bytes: usize,

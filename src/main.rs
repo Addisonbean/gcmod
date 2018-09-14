@@ -203,7 +203,7 @@ fn rebuild_iso(
     };
 
     if iso_path.as_ref().exists() {
-        panic!("{} already exists.", &*iso_path.as_ref().to_string_lossy());
+        panic!("{} already exists.", iso_path.as_ref().display());
     }
 
     let iso = File::create(iso_path.as_ref()).unwrap(); 

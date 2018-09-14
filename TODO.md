@@ -2,6 +2,8 @@
 
 ## Next
 
+* Make the info subcommand always give the same output for a section, regardless of whether -t or -o is used.
+	* Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
 * Only make stuff public if it needs to/should be be
 * Make the disassembler more practical/easier to use
 	* Don't print to stdout, but rather a file
@@ -13,12 +15,10 @@
 * Fix the style to be consistent with the official Rust style guide
 	* Find a better way to use clap, try the macros
 * Add a way to install it (then add that to the readme)
-* Explain Rust style guidelines (basically it's the official guidelines except for matches and explain how to break function signatures)
+* Explain Rust style guidelines (basically it's the official guidelines except for matches)
 * Make the info command give more useful info (plus add verbosity levels with -v, -vv, and so on...)
 * LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc...
 * Add an offset param to extract\_section
-* Make the info subcommand always give the same output for a section, regardless of whether -t or -o is used.
-	* Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
 * Use std::path::MAIN\_SEPARATOR for Windows support
 * Refactor everything in main.rs
 * FST.entry\_with\_name seems too complicated, using entries needs to be easier
@@ -62,10 +62,7 @@
 * Add options or commands specifically for apploaders, dol files, etc... so the whole iso isn't needed
 * Add a GCRebuilder compatibility mode (this'd just add weird extra zeros to some files, but that may not even be necessary idk)
 * Anything in the source with a `TODO: ` label
-* Make consts for the default system data path and the files in there
-	* Maybe a property of Game that stores the filenames?
 * Add offsets for other commands (info has it now)
-* Add a way to only extract a single file
 * Add tests
 * Make sure it works for Japanese ROMs and unicode
 * Add a way to make sure things are rebuilt in the right order

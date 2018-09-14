@@ -13,7 +13,13 @@ use sections::layout_section::{
     UniqueLayoutSection,
     UniqueSectionType,
 };
-use ::{extract_section, format_u64, format_usize, NumberStyle};
+use ::{
+    extract_section,
+    format_u64,
+    format_usize,
+    NumberStyle,
+    paths::DOL_PATH,
+};
 
 use self::segment::{Segment, SegmentType};
 
@@ -164,7 +170,7 @@ impl DOLHeader {
 
 impl<'a> LayoutSection<'a> for DOLHeader {
     fn name(&self) -> Cow<'static, str> {
-        "&&systemdata/Start.dol".into()
+        DOL_PATH.into()
     }
 
     fn section_type(&self) -> SectionType {

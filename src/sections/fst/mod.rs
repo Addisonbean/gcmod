@@ -15,7 +15,13 @@ use sections::layout_section::{
     UniqueLayoutSection,
     UniqueSectionType
 };
-use ::{extract_section, format_u64, format_usize, NumberStyle};
+use ::{
+    extract_section,
+    format_u64,
+    format_usize,
+    NumberStyle,
+    paths::FST_PATH,
+};
 
 use self::entry::{DirectoryEntry, Entry, EntryInfo, ENTRY_SIZE};
 
@@ -199,7 +205,7 @@ impl FST {
 
 impl<'a> LayoutSection<'a> for FST {
     fn name(&self) -> Cow<'static, str> {
-        "&&systemdata/Game.toc".into()
+        FST_PATH.into()
     }
 
     fn section_type(&self) -> SectionType {
