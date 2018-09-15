@@ -296,7 +296,7 @@ fn find_offset(header_path: impl AsRef<Path>, offset: &str, style: NumberStyle) 
             None => panic!("There isn't any data at this offset."),
         };
 
-        section.print_section_info(style);
+        section.print_info(style);
     });
 }
 

@@ -2,8 +2,7 @@
 
 ## Next
 
-* Make the info subcommand always give the same output for a section, regardless of whether -t or -o is used.
-	* Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
+* Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
 * Only make stuff public if it needs to/should be be
 * Make the disassembler more practical/easier to use
 	* Don't print to stdout, but rather a file
@@ -49,7 +48,6 @@
 	* Wait a minute... Why don't I just add a name property or something to Segment?
 * Add a way to check for free space (display this after rebuilding?)
 * Add a way to specify a certain alignment for files matching a regex?
-* Make Entry::new return a Result, not Option
 * Add more subcommands
 * Add a progress indicator for the rebuild command
 * Put it on codereview.stackexchange.com

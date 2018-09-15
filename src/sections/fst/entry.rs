@@ -61,7 +61,7 @@ impl Entry {
         entry: &[u8],
         index: usize,
         directory_index: Option<usize>,
-    ) -> Option<Entry> {
+    ) -> io::Result<Entry> {
         // TODO: don't use unwrap when this is implemented
         // https://github.com/rust-lang/rfcs/issues/935
         let filename_offset =
@@ -79,7 +79,7 @@ impl Entry {
             full_path,
         };
 
-        Some(match entry[0] {
+        Ok(match entry[0] {
             0 => Entry::File(FileEntry {
                 info,
                 file_offset: f2 as u64,
@@ -90,7 +90,7 @@ impl Entry {
                 parent_index: f2 as usize,
                 next_index: f3 as usize,
             }),
-            _ => return None,
+            _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid byte in entry: {:#x}", entry[0]))),
         })
     }
 

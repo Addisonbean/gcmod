@@ -69,11 +69,7 @@ impl FST {
             }
 
             iso.take(ENTRY_SIZE as u64).read_exact(&mut entry_buffer)?;
-            let e =
-                Entry::new(&entry_buffer, index, parents.last().map(|d| d.0))
-                .unwrap_or_else(||
-                    panic!("Couldn't read fst entry {}.", index)
-                );
+            let e = Entry::new(&entry_buffer, index, parents.last().map(|d| d.0))?;
             match &e {
                 Entry::File(f) => {
                     file_count += 1;

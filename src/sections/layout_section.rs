@@ -50,13 +50,14 @@ pub trait LayoutSection<'a> {
         self.compare_offset(offset) == Equal
     }
 
-    fn print_section_info(&'a self, style: NumberStyle) {
-        println!("Name: {}", self.name());
-        println!("Type: {}", self.section_type().to_str());
-        println!("Start: {}", format_u64(self.start(), style));
-        println!("End: {}", format_u64(self.end(), style));
-        println!("Size: {} bytes", format_u64(self.len() as u64, style));
-    }
+    // Useful for debugging, but shouldn't be a public method
+    // fn print_section_info(&'a self, style: NumberStyle) {
+        // println!("Name: {}", self.name());
+        // println!("Type: {}", self.section_type().to_str());
+        // println!("Start: {}", format_u64(self.start(), style));
+        // println!("End: {}", format_u64(self.end(), style));
+        // println!("Size: {} bytes", format_u64(self.len() as u64, style));
+    // }
 }
 
 impl<'a> PartialEq for LayoutSection<'a> {
