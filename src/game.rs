@@ -155,7 +155,7 @@ impl Game {
                 FST::extract(iso, &mut File::create(output)?, self.fst.offset)
                     .map(|_| true),
             _ => {
-                if let Some(e) = self.fst.entry_with_name(filename) {
+                if let Some(e) = self.fst.entry_for_path(filename) {
                     e.extract_with_name(
                         output, &self.fst.entries,
                         iso,

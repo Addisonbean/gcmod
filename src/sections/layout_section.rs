@@ -9,7 +9,7 @@ use sections::{
     fst::FST,
     header::Header,
 };
-use ::{extract_section, format_u64, NumberStyle};
+use ::{extract_section, NumberStyle};
 
 pub trait LayoutSection<'a> {
     fn name(&'a self) -> Cow<'a, str>;

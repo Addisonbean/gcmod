@@ -137,7 +137,7 @@ impl Entry {
         self.extract_with_name_and_count(filename, fst, &mut iso, 0, &mut callback)
     }
 
-    pub fn extract_with_name_and_count(
+    fn extract_with_name_and_count(
         &self,
         filename: impl AsRef<Path>,
         fst: &[Entry],
@@ -179,6 +179,7 @@ impl Entry {
             info.name = "/".to_owned();
         } else {
             reader.seek(SeekFrom::Start(str_tbl_addr + info.filename_offset))?;
+            // TODO: don't use unsafe here
             unsafe {
                 let mut bytes = info.name.as_mut_vec();
                 reader.read_until(0, &mut bytes)?;

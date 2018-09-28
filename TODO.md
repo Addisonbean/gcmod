@@ -2,7 +2,9 @@
 
 ## Next
 
+* Use the fact that Option implements Try now
 * Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
+* Make a version of DirectoryEntry::iter\_contents that is recursive/goes through sub dirs
 * Only make stuff public if it needs to/should be be
 * Make the disassembler more practical/easier to use
 	* Don't print to stdout, but rather a file
@@ -14,13 +16,14 @@
 * Fix the style to be consistent with the official Rust style guide
 	* Find a better way to use clap, try the macros
 * Add a way to install it (then add that to the readme)
+* Get rid of that one unsafe block
 * Explain Rust style guidelines (basically it's the official guidelines except for matches)
 * Make the info command give more useful info (plus add verbosity levels with -v, -vv, and so on...)
 * LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc...
 * Add an offset param to extract\_section
 * Use std::path::MAIN\_SEPARATOR for Windows support
 * Refactor everything in main.rs
-* FST.entry\_with\_name seems too complicated, using entries needs to be easier
+* Make Entry easier to use
 * Make a DOL struct, which contains a DOLHeader struct, and would probably contain the segments directly
 * Add an extract associated function to layout\_section, rename the extract functions to be more meaningful
 * Add more useful, generic stuff to extract\_section, like an error message if the file already exists

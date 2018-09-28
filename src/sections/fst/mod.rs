@@ -3,7 +3,6 @@ pub mod entry;
 use std::borrow::Cow;
 use std::cmp::max;
 use std::collections::BTreeMap;
-use std::ffi::OsStr;
 use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
@@ -103,6 +102,8 @@ impl FST {
             size,
         };
 
+        // Note: I'm not using `for e in &mut fst.entries`
+        // because of borrow checking...
         for i in 0..fst.entries.len() {
             let path = fst.get_full_path(fst.entries[i].info());
             fst.entries[i].info_mut().full_path = path;
@@ -150,30 +151,43 @@ impl FST {
         Ok(())
     }
 
-    pub fn entry_with_name(&self, name: impl AsRef<Path>) -> Option<&Entry> {
-        let name = name.as_ref().strip_prefix("/").unwrap_or(name.as_ref());
+    pub fn entry_for_path(&self, path: impl AsRef<Path>) -> Option<&Entry> {
+        let path = path.as_ref();
+        if path.is_relative() {
+            // Just treat the entire `path` like a single filename in this case
+            self.entry_with_name(path, self.root())
+        } else {
+            // For each component in `path` (skipping the initial "/"),
+            // try to find the corresponding file with that name
+            path.iter().skip(1).try_fold(&self.entries[0], |entry, name| {
+                entry.as_dir().and_then(|dir| {
+                    dir.iter_contents(&self.entries).find(|e| &e.info().name[..] == name)
+                })
+            })
+        }
+    }
 
-        let mut entry = &self.entries[0];
-        for component in name.iter() {
-            if let Some(dir) = entry.as_dir() {
-                for e in dir.iter_contents(&self.entries) {
-                    if component == OsStr::new(&e.info().name) {
-                        entry = e;
-                        break;
-                    }
-                }
-            } else {
-                return None;
+    fn entry_with_name<'a>(&'a self, name: impl AsRef<Path>, dir: &'a DirectoryEntry) -> Option<&'a Entry> {
+        // TODO: use find_map once it's stablized
+        // Some(e).filter(...).or_else(...) ??? (probably not)
+
+        // dir.iter_contents(&self.entries).find_map(|e| {
+            // if name.as_ref() == Path::new(&e.info().name) {
+                // Some(e)
+            // } else if let Some(sub_dir) = e.as_dir() {
+                // self.entry_with_name(name.as_ref(), sub_dir)
+            // }
+        // })
+
+        for e in dir.iter_contents(&self.entries) {
+            if name.as_ref() == Path::new(&e.info().name) {
+                return Some(e)
+            } else if let Some(sub_dir) = e.as_dir() {
+                let res = self.entry_with_name(name.as_ref(), sub_dir);
+                if res.is_some() { return res }
             }
         }
-
-        if name == Path::new(
-            &entry.info().full_path.strip_prefix("/").unwrap()
-        ) {
-            Some(entry)
-        } else {
-            None
-        }
+        None
     }
 
     pub fn get_parent_for_entry(&self, entry: &EntryInfo) -> Option<&Entry> {
@@ -183,19 +197,13 @@ impl FST {
     fn get_full_path(&self, entry: &EntryInfo) -> PathBuf {
         let mut parent = entry;
         let mut names = vec![&entry.name];
-        loop {
-            parent = match self.get_parent_for_entry(parent) {
-                Some(p) => p.info(),
-                None => break,
-            };
 
+        while let Some(p) = self.get_parent_for_entry(parent) {
+            parent = p.info();
             names.push(&parent.name);
         }
-        let mut path = PathBuf::new();
-        for name in names.iter().rev() {
-            path.push(name);
-        }
-        path
+
+        names.iter().rev().collect()
     }
 }
 
