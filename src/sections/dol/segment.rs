@@ -65,7 +65,7 @@ impl Segment {
             static ref SEG_NAME_REGEX: Regex =
                 Regex::new(r"^\.?(text|data)(\d+)$").unwrap();
         }
-        SEG_NAME_REGEX.captures(name).and_then(|c|
+        SEG_NAME_REGEX.captures(name).and_then(|c| {
             parse_as_u64(c.get(2).unwrap().as_str()).map(|n| {
                 let t = match c.get(1).unwrap().as_str() {
                     "text" => Text,
@@ -74,7 +74,7 @@ impl Segment {
                 };
                 (t, n)
             }).ok()
-        )
+        })
     }
 }
 

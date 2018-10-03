@@ -133,22 +133,19 @@ impl<'a> FSTRebuilder<'a> {
     ) -> io::Result<()> {
         for e in read_dir(path.as_ref())? {
             let e = e?;
+            let filename = e.file_name();
+            let filename = filename.to_string_lossy();
 
-            // TODO: don't keep calling e.file_name(), store it somewhere
-
-            if e.file_name().to_str().map(|s| s.starts_with("."))
-                .unwrap_or(false)
-                || e.file_name().to_str() == Some("&&systemdata")
-            {
+            if filename.starts_with(".") || filename == "&&systemdata" {
                 continue
             }
 
             let mut full_path = rb_info.current_path.clone();
-            full_path.push(e.file_name());
+            full_path.push(&*filename);
             let index = rb_info.entries.len() as usize;
             let info = EntryInfo {
                 index,
-                name: e.file_name().to_string_lossy().into_owned(),
+                name: filename.clone().into_owned(),
                 filename_offset: rb_info.filename_offset,
                 directory_index: rb_info.parent_index,
                 full_path,
@@ -168,7 +165,7 @@ impl<'a> FSTRebuilder<'a> {
                 rb_info.entries.push(entry);
 
                 rb_info.parent_index = Some(index);
-                rb_info.current_path.push(e.file_name());
+                rb_info.current_path.push(&*filename);
                 let count_before = rb_info.entries.len();
 
                 self.rebuild_dir_info(e.path(), rb_info)?;

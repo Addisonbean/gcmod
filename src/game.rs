@@ -212,7 +212,8 @@ pub struct ROMLayout<'a>(Vec<&'a LayoutSection<'a>>);
 
 impl<'a> ROMLayout<'a> {
     pub fn find_offset(&'a self, offset: u64) -> Option<&'a LayoutSection<'a>> {
-        self.0.binary_search_by(|s| s.compare_offset(offset)).ok()
+        self.0.binary_search_by(|s| s.compare_offset(offset))
+            .ok()
             .map(|i| self.0[i])
     }
 

@@ -287,9 +287,7 @@ fn find_offset(header_path: impl AsRef<Path>, offset: &str, style: NumberStyle) 
             format_usize(ROM_SIZE, style),
         ),
     };
-    try_to_open_game(header_path.as_ref(), 0).map(|(game, _)| {
-        // TODO: if None, tell if there's no data beyond this point
-        // Also provide a message saying it's just blank space if it's None
+    if let Some((game, _)) = try_to_open_game(header_path.as_ref(), 0) {
         let layout = game.rom_layout();
         let section = match layout.find_offset(offset) {
             Some(s) => s,
@@ -297,7 +295,7 @@ fn find_offset(header_path: impl AsRef<Path>, offset: &str, style: NumberStyle) 
         };
 
         section.print_info(style);
-    });
+    };
 }
 
 fn find_mem_addr(path: impl AsRef<Path>, mem_addr: &str, style: NumberStyle) {

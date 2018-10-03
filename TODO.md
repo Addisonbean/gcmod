@@ -2,7 +2,6 @@
 
 ## Next
 
-* Use the fact that Option implements Try now
 * Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
 * Make a version of DirectoryEntry::iter\_contents that is recursive/goes through sub dirs
 * Only make stuff public if it needs to/should be be
