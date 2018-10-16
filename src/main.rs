@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 use clap::{App, Arg, SubCommand, AppSettings};
 
 use gcmod::{
+    AppError,
+    AppResult,
     DEFAULT_ALIGNMENT,
     Game,
     format_u64,
@@ -25,7 +27,7 @@ use gcmod::sections::{
     layout_section::{LayoutSection, UniqueSectionType}
 };
 
-fn main() {
+fn main() -> AppResult {
     let opts = App::new("gciso")
 
         .subcommand(SubCommand::with_name("extract")
@@ -110,7 +112,7 @@ fn main() {
                 cmd.value_of("alignment"),
                 true,
             ),
-        _ => (),
+        _ => unreachable!(),
     }
 }
 
@@ -118,71 +120,71 @@ fn extract_iso(
     input: impl AsRef<Path>,
     output: impl AsRef<Path>,
     file_in_iso: Option<impl AsRef<Path>>,
-) {
-    if let Some(file) = file_in_iso {
-        extract_section(input.as_ref(), file.as_ref(), output.as_ref());
-        return;
-    }
-
+) -> AppResult {
     let output = output.as_ref();
-    if output.exists() {
-        panic!("Error: {} already exists.", output.display());
+
+    if let Some(file) = file_in_iso {
+        return extract_section(input.as_ref(), file.as_ref(), output);
     }
 
-    try_to_open_game(input.as_ref(), 0).map(|(mut game, mut iso)|
-        if let Err(_) = game.extract(&mut iso, output) {
-            panic!("Failed to write files.");
-        }
-    );
+    if output.exists() {
+        return Err(AppError::new(format!("Error: {} already exists.", output.display())));
+    }
+
+    let (mut game, mut iso) = try_to_open_game(input.as_ref(), 0)?;
+    game.extract(&mut iso, output).map_err(|_| AppError::new("Failed to write files."))?;
+
+    Ok(())
 }
 
-fn print_iso_info(input: impl AsRef<Path>, offset: u64, style: NumberStyle) {
-    try_to_open_game(input, offset).map(|(game, _)| game.print_info(style));
+fn print_iso_info(input: impl AsRef<Path>, offset: u64, style: NumberStyle) -> AppResult {
+    let (game, _) = try_to_open_game(input, offset)?;
+    game.print_info(style);
+    Ok(())
 }
 
 // is this a bit much for main.rs? Move it to disassembler.rs?
 fn disassemble_dol(
     input: impl AsRef<Path>,
     objdump_path: Option<impl AsRef<Path>>
-) {
-    try_to_open_game(input.as_ref(), 0).map(|(game, mut iso)| {
-        let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
-        if let Err(_) = DOLHeader::extract(&mut iso, tmp_file.as_mut(), game.dol.offset) {
-            panic!("Could not extract dol.");
-        }
-        tmp_file.seek(SeekFrom::Start(0)).unwrap();
-        let header = DOLHeader::new(tmp_file.as_mut(), 0)
-            .expect("Failed to read header.");
-        let objdump_path = objdump_path
-            .map(|p| p.as_ref().to_path_buf())
-            .or_else(|| env::var("GCMOD_GNU_OBJDUMP").ok().map(|p| PathBuf::from(p)))
-            .unwrap_or_else(|| PathBuf::from("objdump"));
+) -> AppResult {
+    let (game, mut iso) = try_to_open_game(input.as_ref(), 0)?;
 
-        let disassembler =
-            match Disassembler::objdump_path(objdump_path.as_os_str()) {
-                Ok(d) => d,
-                Err(_) => panic!("GNU objdump required."),
-            };
+    let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
+    DOLHeader::extract(&mut iso, tmp_file.as_mut(), game.dol.offset)
+        .map_err(|_| AppError::new("Could not extract dol."))?;
 
-        let mut addr = 0;
-        for s in header.iter_segments() {
-            if s.size == 0 { continue }
-            println!("{}", s.to_string());
+    tmp_file.seek(SeekFrom::Start(0)).unwrap();
+    let header = DOLHeader::new(tmp_file.as_mut(), 0)
+        .expect("Failed to read header.");
 
-            let disasm = disassembler.disasm(tmp_file.path(), s)
-                .expect("Failed to open DOL section");
-            for instr in disasm {
-                addr = instr.location.unwrap_or(addr + 4);
-                println!(
-                    "{:#010x}: {:#010x} {}",
-                    addr, instr.opcode, instr.text,
-                );
-                if instr.location.is_none() {
-                    println!("                       ...");
-                }
+    let objdump_path = objdump_path
+        .map(|p| p.as_ref().to_path_buf())
+        .or_else(|| env::var("GCMOD_GNU_OBJDUMP").ok().map(|p| PathBuf::from(p)))
+        .unwrap_or_else(|| PathBuf::from("objdump"));
+
+    let disassembler = Disassembler::objdump_path(objdump_path.as_os_str())
+        .map_err(|_| AppError::new("GNU objdump required."))?;
+
+    let mut addr = 0;
+    for s in header.iter_segments() {
+        if s.size == 0 { continue }
+        println!("{}", s.to_string());
+
+        let disasm = disassembler.disasm(tmp_file.path(), s)
+            .expect("Failed to open DOL section");
+        for instr in disasm {
+            addr = instr.location.unwrap_or(addr + 4);
+            println!(
+                "{:#010x}: {:#010x} {}",
+                addr, instr.opcode, instr.text,
+            );
+            if instr.location.is_none() {
+                println!("                       ...");
             }
         }
-    });
+    }
+    Ok(())
 }
 
 fn rebuild_iso(
@@ -190,30 +192,27 @@ fn rebuild_iso(
     iso_path: impl AsRef<Path>,
     alignment: Option<&str>,
     rebuild_systemdata: bool,
-) {
+) -> AppResult {
     let alignment = match alignment {
         Some(a) => match parse_as_u64(a) {
             Ok(a) if a >= MIN_ALIGNMENT => a,
-            _ => panic!(
-                "Invalid alignment. Must be an integer >= {}",
-                MIN_ALIGNMENT,
-            ),
+            _ => return Err(AppError::new(format!("Invalid alignment. Must be an integer >= {}", MIN_ALIGNMENT))),
         },
         None => DEFAULT_ALIGNMENT,
     };
 
-    if iso_path.as_ref().exists() {
-        panic!("{} already exists.", iso_path.as_ref().display());
+    let iso_path = iso_path.as_ref();
+
+    if iso_path.exists() {
+        return Err(AppError::new(format!("{} already exists.", iso_path.display())));
     }
 
-    let iso = File::create(iso_path.as_ref()).unwrap(); 
-    if let Err(e) =
-        ROMRebuilder::rebuild(root_path, alignment, iso, rebuild_systemdata)
-    {
-        eprintln!("Couldn't rebuild iso.");
-        e.get_ref().map(|e| eprintln!("{}", e));
-        remove_file(iso_path.as_ref()).unwrap();
-        panic!();
+    let iso = File::create(iso_path).unwrap(); 
+    if let Err(_) = ROMRebuilder::rebuild(root_path, alignment, iso, rebuild_systemdata) {
+        remove_file(iso_path).unwrap();
+        Err(AppError::new("Couldn't rebuild iso."))
+    } else {
+        Ok(())
     }
 }
 
@@ -223,13 +222,13 @@ fn get_info(
     offset: Option<&str>,
     mem_addr: Option<&str>,
     style: NumberStyle,
-) {
+) -> AppResult {
     use gcmod::sections::layout_section::UniqueSectionType::*;
 
     if let Some(offset) = offset {
-        find_offset(path.as_ref(), offset, style);
+        find_offset(path.as_ref(), offset, style)
     } else if let Some(addr) = mem_addr {
-        find_mem_addr(path.as_ref(), addr, style);
+        find_mem_addr(path.as_ref(), addr, style)
     } else {
         match section {
             Some("header") => print_section_info(path.as_ref(), &Header, style),
@@ -248,106 +247,93 @@ fn print_section_info(
     path: impl AsRef<Path>,
     section_type: &UniqueSectionType,
     style: NumberStyle,
-) {
-    let mut f = match File::open(path.as_ref()) {
-        Ok(f) => BufReader::new(f),
-        Err(_) => panic!("Couldn't open file"),
-    };
+) -> AppResult {
+    let mut f = File::open(path.as_ref())
+        .map(BufReader::new)
+        .map_err(|_| AppError::new("Couldn't open file"))?;
 
-    match Game::open(&mut f, 0) {
-        Ok(g) => {
-            g.get_section_by_type(section_type).print_info(style);
-            return;
-        },
-        _ => (),
+    if let Ok(g) = Game::open(&mut f, 0) {
+        g.get_section_by_type(section_type).print_info(style);
+    } else if let Ok(s) = section_type.with_offset(&mut f, 0) {
+        s.print_info(style);
+    } else {
+        return Err(AppError::new("Invalid file"))
     }
 
-    match section_type.with_offset(&mut f, 0) {
-        Ok(s) => {
-            s.print_info(style);
-            return;
-        },
-        _ => (),
-    }
-
-    panic!("Invalid file");
+    Ok(())
 }
 
-fn print_layout(path: impl AsRef<Path>) {
-    try_to_open_game(path.as_ref(), 0).map(|(game, _)|
-        game.print_layout()
-    );
+fn print_layout(path: impl AsRef<Path>) -> AppResult {
+    let (game, _) = try_to_open_game(path.as_ref(), 0)?;
+    game.print_layout();
+    Ok(())
 }
 
-fn find_offset(header_path: impl AsRef<Path>, offset: &str, style: NumberStyle) {
-    let offset = match parse_as_u64(offset) {
-        Ok(o) if (o as usize) < ROM_SIZE => o,
-        _ => panic!(
+fn find_offset(header_path: impl AsRef<Path>, offset: &str, style: NumberStyle) -> AppResult {
+    let offset = parse_as_u64(offset).ok()
+        .filter(|o| (*o as usize) < ROM_SIZE)
+        .ok_or_else(|| AppError::new(format!(
             "Invalid offset. Offset must be a number > 0 and < {}",
             format_usize(ROM_SIZE, style),
-        ),
-    };
-    if let Some((game, _)) = try_to_open_game(header_path.as_ref(), 0) {
-        let layout = game.rom_layout();
-        let section = match layout.find_offset(offset) {
-            Some(s) => s,
-            None => panic!("There isn't any data at this offset."),
-        };
+        )))?;
 
-        section.print_info(style);
-    };
+    let (game, _) = try_to_open_game(header_path.as_ref(), 0)?;
+    let layout = game.rom_layout();
+    let section = layout.find_offset(offset)
+        .ok_or_else(|| AppError::new("There isn't any data at this offset."))?;
+
+    section.print_info(style);
+    Ok(())
 }
 
-fn find_mem_addr(path: impl AsRef<Path>, mem_addr: &str, style: NumberStyle) {
-    if let Ok(mem_addr) = parse_as_u64(mem_addr) {
-        try_to_open_game(path.as_ref(), 0).map(|(game, _)| {
-            if let Some(s) = game.dol.segment_at_addr(mem_addr) {
-                let offset = mem_addr - s.loading_address;
-                println!("Segment: {}", s.name());
-                println!("Offset from start of segment: {}", format_u64(offset, style));
-            } else {
-                panic!("No DOL segment will be loaded at this address.");
-            }
-        });
-    } else {
-        panic!("Invalid address. Must be an integer.");
-    }
+fn find_mem_addr(path: impl AsRef<Path>, mem_addr: &str, style: NumberStyle) -> AppResult {
+    let mem_addr = parse_as_u64(mem_addr)
+        .map_err(|_| AppError::new("Invalid address. Must be an integer."))?;
+
+    let (game, _) = try_to_open_game(path.as_ref(), 0)?;
+
+    let seg = game.dol.segment_at_addr(mem_addr)
+        .ok_or_else(|| AppError::new("No DOL segment will be loaded at this address."))?;
+
+    let offset = mem_addr - seg.loading_address;
+    println!("Segment: {}", seg.name());
+    println!("Offset from start of segment: {}", format_u64(offset, style));
+
+    Ok(())
 }
 
 fn extract_section(
     iso_path: impl AsRef<Path>,
     section_filename: impl AsRef<Path>,
     output: impl AsRef<Path>,
-) {
-    try_to_open_game(iso_path.as_ref(), 0).map(|(game, mut iso)| {
-        let result = game.extract_section_with_name(
-            section_filename,
-            output.as_ref(),
-            &mut iso,
-        );
-        match result {
-            Ok(true) => {},
-            Ok(false) => panic!("Couldn't find a section with that name."),
-            Err(_) => panic!("Error extracting section."),
-        }
-    });
+) -> AppResult {
+    let (game, mut iso) = try_to_open_game(iso_path.as_ref(), 0)?;
+
+    let result = game.extract_section_with_name(
+        section_filename,
+        output.as_ref(),
+        &mut iso,
+    );
+
+    match result {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(AppError::new("Couldn't find a section with that name.")),
+        Err(_) => Err(AppError::new("Error extracting section.")),
+    }
 }
 
-fn try_to_open_game<P>(path: P, offset: u64) -> Option<(Game, BufReader<File>)>
+fn try_to_open_game<P>(path: P, offset: u64) -> Result<(Game, BufReader<File>), AppError>
 where
     P: AsRef<Path>,
 {
     let path = path.as_ref();
     if !path.exists() {
-        eprintln!("Error: the iso {} doesn't exist.", path.display());
-    } else {
-        let iso = File::open(path).expect("Couldn't open file");
-        let mut iso = BufReader::new(iso);
-        match Game::open(&mut iso, offset) {
-            Ok(game) => return Some((game, iso)),
-            Err(_) => eprintln!("Invalid iso: {}.", path.display()),
-        }
+        return Err(AppError::new(format!("The iso {} doesn't exist.", path.display())));
     }
-    None
-}
 
+    let iso = File::open(path).expect("Couldn't open file");
+    let mut iso = BufReader::new(iso);
+    Game::open(&mut iso, offset)
+        .map(|game| (game, iso))
+        .map_err(|_| AppError::new(format!("Invalid iso: {}.", path.display())))
+}

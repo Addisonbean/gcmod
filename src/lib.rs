@@ -3,7 +3,9 @@ extern crate byteorder;
 extern crate lazy_static;
 extern crate regex;
 
+use std::borrow::Cow;
 use std::cmp::min;
+use std::fmt;
 use std::io::{self, Read, Write};
 use std::num::ParseIntError;
 
@@ -102,3 +104,18 @@ pub fn parse_as_usize(text: &str) -> Result<usize, ParseIntError> {
     }
 }
 
+pub struct AppError(Cow<'static, str>);
+
+impl AppError {
+    pub fn new(msg: impl Into<Cow<'static, str>>) -> AppError {
+        AppError(msg.into())
+    }
+}
+
+impl fmt::Debug for AppError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+pub type AppResult = Result<(), AppError>;
