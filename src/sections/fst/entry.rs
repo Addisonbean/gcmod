@@ -48,6 +48,13 @@ pub struct DirectoryEntry {
     pub info: EntryInfo,
     pub parent_index: usize,
     pub next_index: usize,
+
+    // The fields below are not actually stored on the ROM:
+
+	// This is the amount of files in the directory. This is different from
+	// `next_index - info.index` because this field doesn't include the file_count
+	// of it's subdirectories
+	pub file_count: usize,
 }
 
 #[derive(Debug)]
@@ -89,6 +96,8 @@ impl Entry {
                 info,
                 parent_index: f2 as usize,
                 next_index: f3 as usize,
+				// TODO: I don't like setting this to an incorrect, default value here...
+				file_count: 0,
             }),
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid byte in entry: {:#x}", entry[0]))),
         })
@@ -190,8 +199,17 @@ impl Entry {
         Ok(())
     }
 
+    pub fn format_long(&self) -> String {
+        let (ftype, size) = match self {
+            Entry::File(f) => ('-', f.size),
+            Entry::Directory(d) => ('d', d.file_count),
+        };
+        // 2^32 - 1 is 10 digits wide in decimal
+        format!("{} {:>10} {}", ftype, size, self.info().full_path.to_string_lossy())
+    }
+
     pub fn as_dir(&self) -> Option<&DirectoryEntry> {
-        if let &Entry::Directory(ref dir) = self {
+        if let Entry::Directory(ref dir) = self {
             Some(dir)
         } else {
             None

@@ -6,7 +6,10 @@ use std::path::Path;
 use sections::apploader::{Apploader, APPLOADER_OFFSET};
 use sections::dol::DOLHeader;
 use sections::dol::segment::Segment;
-use sections::fst::FST;
+use sections::fst::{
+    entry::DirectoryEntry,
+    FST,
+};
 use sections::header::{GAME_HEADER_SIZE, Header};
 use sections::layout_section::{LayoutSection, UniqueLayoutSection, UniqueSectionType};
 use ::{
@@ -204,8 +207,17 @@ impl Game {
             println!("{:#010x}-{:#010x}: {}", start, start + end as u64, name);
         }
     }
-}
 
+    pub fn print_directory(&self, dir: &DirectoryEntry, long_format: bool) {
+        for e in dir.iter_contents(&self.fst.entries) {
+            if long_format {
+                println!("{}", e.format_long());
+            } else {
+                println!("{}", e.info().full_path.to_string_lossy());
+            }
+        }
+    }
+}
 
 // Use BinaryHeap?
 pub struct ROMLayout<'a>(Vec<&'a LayoutSection<'a>>);

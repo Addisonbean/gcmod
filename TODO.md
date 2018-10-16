@@ -3,9 +3,11 @@
 ## Next
 
 * Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
+* Add more flags and LS\_COLORS to the ls subcommand
 * Make a version of DirectoryEntry::iter\_contents that is recursive/goes through sub dirs
 * Only make stuff public if it needs to/should be be
 * Make the disassembler more practical/easier to use
+	* Look into http://www.keystone-engine.org/
 	* Don't print to stdout, but rather a file
 	* Add the ability to pick which segment(s) are disassembled
 	* Sometimes I just want to disassemble a single instruction, add that.
@@ -21,20 +23,19 @@
 * LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc...
 * Add an offset param to extract\_section
 * Use std::path::MAIN\_SEPARATOR for Windows support
-* Refactor everything in main.rs
 * Make Entry easier to use
 * Make a DOL struct, which contains a DOLHeader struct, and would probably contain the segments directly
 * Add an extract associated function to layout\_section, rename the extract functions to be more meaningful
 * Add more useful, generic stuff to extract\_section, like an error message if the file already exists
 * Move stuff like consts and functions from src/lib.rs into something like src/utility.rs
 * Keep working on the documentation on Google Docs
-* Set shell exit code/status after failure
 
 * Get rid of the `-V/--version` flag from the subcommand's help option, make sure it's only in the main help
+* Refactor that gross loop in FST::new
 * Add a thing like print\_layout for the dol, that prints brief information about all the segments (support -v for added verbosity)
 * Patch file generator for mods???
 * Remove the offset param in Game::new
-* Add cool stuff for getting info on the rom like a tree command to view the file system as a tree, an ls or list-files subcommand, cool stuff like that
+* Add cool stuff for getting info on the rom like a tree command to view the file system as a tree
 * Improve the modules exported by lib.rs, like no more gamecube\_iso\_assistant::apploader::Apploader
 * Make methods or functions for adding sections or files to a btree map, maybe make a struct to generalize the thing going on with make\_sections\_btree
 * Make a function like Game::is\_valid\_rom that checks to see if it has the magic byte and if it's the right size?

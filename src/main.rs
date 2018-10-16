@@ -64,6 +64,17 @@ fn main() -> AppResult {
                  .conflicts_with_all(&["type", "offset"])
                  .help("Print information about the DOL segment that will be loaded into a given address in memory.")))
 
+        // TODO: add flags for searching and crap
+        // Add more `ls` style flags (LS_COLORS!)
+        // Add a flag to recursively list, default to / or the dir they pass
+        .subcommand(SubCommand::with_name("ls")
+            .about("Lists the files on the ROM.")
+            .arg(Arg::with_name("rom_path").required(true))
+            .arg(Arg::with_name("dir").required(false)
+                 .help("The name or path of the directory to list."))
+            .arg(Arg::with_name("long").short("l").long("long")
+                 .required(false)))
+
         .subcommand(SubCommand::with_name("disasm")
             .about("Disassemble the main DOL file from a ROM.")
             .arg(Arg::with_name("rom_path").required(true))
@@ -99,6 +110,12 @@ fn main() -> AppResult {
                 } else {
                     NumberStyle::Decimal
                 },
+            ),
+        ("ls", Some(cmd)) =>
+            ls_files(
+                cmd.value_of("rom_path").unwrap(),
+                cmd.value_of("dir"),
+                cmd.is_present("long"),
             ),
         ("disasm", Some(cmd)) =>
             disassemble_dol(
@@ -319,6 +336,21 @@ fn extract_section(
         Ok(true) => Ok(()),
         Ok(false) => Err(AppError::new("Couldn't find a section with that name.")),
         Err(_) => Err(AppError::new("Error extracting section.")),
+    }
+}
+
+fn ls_files(rom_path: impl AsRef<Path>, dir: Option<impl AsRef<Path>>, long_format: bool) -> AppResult {
+    let (game, _) = try_to_open_game(rom_path, 0)?;
+    let dir = match dir {
+        Some(p) => game.fst.entry_for_path(p).and_then(|e| e.as_dir()),
+        None => Some(game.fst.root()),
+    };
+
+    if let Some(d) = dir {
+        game.print_directory(d, long_format);
+        Ok(())
+    } else {
+        Err(AppError::new("No directory with that name/path exists"))
     }
 }
 

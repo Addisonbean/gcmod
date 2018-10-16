@@ -59,12 +59,19 @@ impl FST {
         let mut file_count = 0;
         let mut total_file_system_size = 0;
 
-        // (parent_index, index of next file not in the parent dir)
-        let mut parents = vec![(0, entry_count)];
+        // (parent_index, index of next file not in the parent dir, # of files in this parent)
+        let mut parents = vec![(0, entry_count, 0)];
 
         for index in 1..entry_count {
+            // Pop the directories that are no longer part of the current path
             while parents.last().map(|d| d.1) == Some(index) {
-                parents.pop();
+                if let Some((i, _, count)) = parents.pop() {
+                    entries[i].as_dir_mut().unwrap().file_count = count;
+                }
+            }
+
+            if let Some(p) = parents.last_mut() {
+                p.2 += 1;
             }
 
             iso.take(ENTRY_SIZE as u64).read_exact(&mut entry_buffer)?;
@@ -75,7 +82,7 @@ impl FST {
                     total_file_system_size += f.size;
                 },
                 Entry::Directory(d) => {
-                    parents.push((index, d.next_index));
+                    parents.push((index, d.next_index, 0));
                 },
             }
 

@@ -80,6 +80,7 @@ impl<'a> FSTRebuilder<'a> {
             parent_index: 0,
             // this value is updated later on, after self.rebuild_dir_info is called
             next_index: 0,
+            file_count: 0,
         });
         let mut rb_info = FSTRebuilderInfo {
             entries: vec![root_entry],
@@ -130,7 +131,8 @@ impl<'a> FSTRebuilder<'a> {
         &self,
         path: impl AsRef<Path>,
         rb_info: &mut FSTRebuilderInfo,
-    ) -> io::Result<()> {
+    ) -> io::Result<usize> {
+        let mut total_file_count = 0;
         for e in read_dir(path.as_ref())? {
             let e = e?;
             let filename = e.file_name();
@@ -139,6 +141,7 @@ impl<'a> FSTRebuilder<'a> {
             if filename.starts_with(".") || filename == "&&systemdata" {
                 continue
             }
+            total_file_count += 1;
 
             let mut full_path = rb_info.current_path.clone();
             full_path.push(&*filename);
@@ -159,21 +162,26 @@ impl<'a> FSTRebuilder<'a> {
                 let entry = Entry::Directory(DirectoryEntry {
                     info,
                     parent_index: old_index.unwrap_or(0),
-                    next_index: index + 1
+                    next_index: index + 1,
+                    file_count: 0,
                 });
                 let index = rb_info.entries.len();
                 rb_info.entries.push(entry);
 
                 rb_info.parent_index = Some(index);
                 rb_info.current_path.push(&*filename);
-                let count_before = rb_info.entries.len();
+                let total_count_before = rb_info.entries.len();
 
-                self.rebuild_dir_info(e.path(), rb_info)?;
+                let count = self.rebuild_dir_info(e.path(), rb_info)?;
 
                 rb_info.parent_index = old_index;
                 rb_info.current_path.pop();
-                rb_info.entries[index].as_dir_mut().unwrap().next_index +=
-                    rb_info.entries.len() - count_before;
+
+                let files_added = rb_info.entries.len() - total_count_before;
+
+                let mut dir = rb_info.entries[index].as_dir_mut().unwrap();
+                dir.file_count = count;
+                dir.next_index += files_added;
             } else {
                 // As noted in `rebuild`, this `file_offset` is not
                 // the final offset. It'd be added to later.
@@ -188,7 +196,7 @@ impl<'a> FSTRebuilder<'a> {
                 rb_info.entries.push(entry);
             }
         }
-        Ok(())
+        Ok(total_file_count)
     }
 }
 
