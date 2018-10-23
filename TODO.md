@@ -15,7 +15,6 @@
 * Should ROMLayout have a BinaryHeap instead of a Vec?
 * Make the section names in `gcmod extract -s` more intuitive
 * Fix the style to be consistent with the official Rust style guide
-	* Find a better way to use clap, try the macros
 * Add a way to install it (then add that to the readme)
 * Get rid of that one unsafe block
 * Explain Rust style guidelines (basically it's the official guidelines except for matches)

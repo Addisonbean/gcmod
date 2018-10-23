@@ -1,3 +1,4 @@
+#[macro_use]
 extern crate clap;
 extern crate gcmod;
 extern crate tempfile;
@@ -7,7 +8,7 @@ use std::fs::{remove_file, File};
 use std::io::{BufReader, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
-use clap::{App, Arg, SubCommand, AppSettings};
+use clap::AppSettings;
 
 use gcmod::{
     AppError,
@@ -28,71 +29,51 @@ use gcmod::sections::{
 };
 
 fn main() -> AppResult {
-    let opts = App::new("gciso")
-
-        .subcommand(SubCommand::with_name("extract")
-            .about("Extract a ROM's contents to disk.")
-            .arg(Arg::with_name("rom_path").required(true))
-            .arg(Arg::with_name("output").required(true))
-            .arg(Arg::with_name("rom_section").short("s").long("section")
-                .takes_value(true).required(false)
-                .help("Specify a single section to extract from the ROM, rather than everything.")))
-
-        .subcommand(SubCommand::with_name("info")
-            .about("Display information about the ROM.")
-            .arg(Arg::with_name("hex_output").short("h").long("hex")
-                 .required(false)
-                 .help("Displays numbers in hexadecimal."))
-            .arg(Arg::with_name("rom_path").required(true))
-            .arg(Arg::with_name("type").short("t").long("type")
-                 .takes_value(true).required(false)
-                 .possible_values(&[
-                    "header",
-                    "dol",
-                    "fst",
-                    "apploader",
-                    "layout",
-                 ])
-                 .case_insensitive(true)
-                 .help("Print a given type of information about the ROM."))
-            .arg(Arg::with_name("offset").short("o").long("offset")
-                 .takes_value(true).required(false)
-                 .conflicts_with_all(&["type", "mem_addr"])
-                 .help("Print information about whichever section is at the given offset."))
-            .arg(Arg::with_name("mem_addr").short("m").long("mem_addr")
-                 .takes_value(true).required(false)
-                 .conflicts_with_all(&["type", "offset"])
-                 .help("Print information about the DOL segment that will be loaded into a given address in memory.")))
-
+    let app = clap_app!(app =>
+        (@subcommand disasm =>
+            (about: "Disassemble the main DOL file from a ROM.")
+            (@arg objdump_path: --objdump +takes_value
+                "If you don't have the GNU version of objdump in $PATH, you must either provide the path here or set it in the $GCMOD_GNU_OBJDUMP enviroment variable.")
+        )
+        (@subcommand extract =>
+            (about: "Extract a ROM's contents to disk.")
+            (@arg rom_path: +required)
+            (@arg output: +required)
+            (@arg rom_section: -s --section +takes_value "Specify a single section to extract from the ROM, rather than everything.")
+        )
+        (@subcommand info =>
+            (about: "Display information about the ROM.")
+            (@arg rom_path: +required)
+            (@arg hex_output: -h --hex "Displays numbers in hexadecimal.")
+            (@arg type: -t --type +takes_value +case_insensitive
+                possible_value[header dol fst apploader layout]
+                "Print a given type of information about the ROM.")
+            (@arg offset: -o --offset +takes_value
+                conflicts_with[type mem_addr]
+                "Print information about whichever section is at the given offset.")
+            (@arg mem_addr: -m --mem_addr +takes_value
+                conflicts_with[type offset]
+                "Print information about the DOL segment that will be loaded into a given address in memory.")
+        )
         // TODO: add flags for searching and crap
         // Add more `ls` style flags (LS_COLORS!)
         // Add a flag to recursively list, default to / or the dir they pass
-        .subcommand(SubCommand::with_name("ls")
-            .about("Lists the files on the ROM.")
-            .arg(Arg::with_name("rom_path").required(true))
-            .arg(Arg::with_name("dir").required(false)
-                 .help("The name or path of the directory to list."))
-            .arg(Arg::with_name("long").short("l").long("long")
-                 .required(false)))
+        (@subcommand ls =>
+            (about: "Lists the files on the ROM.")
+            (@arg rom_path: +required)
+            (@arg dir: "The name or path of the directory in the ROM to list.")
+            (@arg long: -l --long "List the files in an `ls -l`-style format.")
+        )
+        (@subcommand rebuild =>
+            (about: "Rebuilds a ROM.")
+            (@arg root_path: +required)
+            (@arg output: +required)
+            (@arg alignment: -a --alignment +takes_value
+                "Specifies the alignment in bytes for the files in the filesystem. The default is 32768 bytes (32KiB) and the minimum is 2 bytes.")
+        )
+    ).setting(AppSettings::SubcommandRequired);
 
-        .subcommand(SubCommand::with_name("disasm")
-            .about("Disassemble the main DOL file from a ROM.")
-            .arg(Arg::with_name("rom_path").required(true))
-            .arg(Arg::with_name("objdump_path").long("objdump")
-                 .takes_value(true).required(false)
-                 .help("If you don't have the GNU version of objdump in $PATH, you must either provide the path here or set it in the $GCMOD_GNU_OBJDUMP enviroment variable.")))
-
-        .subcommand(SubCommand::with_name("rebuild")
-            .about("Rebuilds a ROM.")
-            .arg(Arg::with_name("root_path").required(true))
-            .arg(Arg::with_name("output").required(true))
-            .arg(Arg::with_name("alignment").short("a").long("alignment")
-                .required(false)
-                .takes_value(true)
-                .help("Specifies the alignment in bytes for the files in the filesystem. The default is 32768 bytes (32KiB) and the minimum is 2 bytes.")))
-
-        .setting(AppSettings::SubcommandRequired);
-    match opts.get_matches().subcommand() {
+    match app.get_matches().subcommand() {
         ("extract", Some(cmd)) => 
             extract_iso(
                 cmd.value_of("rom_path").unwrap(),
