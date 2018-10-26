@@ -9,9 +9,6 @@ use std::fmt;
 use std::io::{self, Read, Write};
 use std::num::ParseIntError;
 
-mod disassembler;
-pub use disassembler::Disassembler;
-
 mod game;
 pub use game::Game;
 pub use game::ROM_SIZE;

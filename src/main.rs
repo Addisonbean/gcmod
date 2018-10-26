@@ -3,10 +3,9 @@ extern crate clap;
 extern crate gcmod;
 extern crate tempfile;
 
-use std::env;
 use std::fs::{remove_file, File};
-use std::io::{BufReader, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
+use std::io::BufReader;
+use std::path::Path;
 
 use clap::AppSettings;
 
@@ -22,19 +21,11 @@ use gcmod::{
     parse_as_u64,
     ROM_SIZE,
 };
-use gcmod::{Disassembler, ROMRebuilder};
-use gcmod::sections::{
-    dol::DOLHeader,
-    layout_section::{LayoutSection, UniqueSectionType}
-};
+use gcmod::ROMRebuilder;
+use gcmod::sections::layout_section::{LayoutSection, UniqueSectionType};
 
 fn main() -> AppResult {
     let app = clap_app!(app =>
-        (@subcommand disasm =>
-            (about: "Disassemble the main DOL file from a ROM.")
-            (@arg objdump_path: --objdump +takes_value
-                "If you don't have the GNU version of objdump in $PATH, you must either provide the path here or set it in the $GCMOD_GNU_OBJDUMP enviroment variable.")
-        )
         (@subcommand extract =>
             (about: "Extract a ROM's contents to disk.")
             (@arg rom_path: +required)
@@ -98,11 +89,6 @@ fn main() -> AppResult {
                 cmd.value_of("dir"),
                 cmd.is_present("long"),
             ),
-        ("disasm", Some(cmd)) =>
-            disassemble_dol(
-                cmd.value_of("rom_path").unwrap(),
-                cmd.value_of("objdump_path"),
-            ),
         ("rebuild", Some(cmd)) =>
             rebuild_iso(
                 cmd.value_of("root_path").unwrap(),
@@ -138,50 +124,6 @@ fn extract_iso(
 fn print_iso_info(input: impl AsRef<Path>, offset: u64, style: NumberStyle) -> AppResult {
     let (game, _) = try_to_open_game(input, offset)?;
     game.print_info(style);
-    Ok(())
-}
-
-// is this a bit much for main.rs? Move it to disassembler.rs?
-fn disassemble_dol(
-    input: impl AsRef<Path>,
-    objdump_path: Option<impl AsRef<Path>>
-) -> AppResult {
-    let (game, mut iso) = try_to_open_game(input.as_ref(), 0)?;
-
-    let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
-    DOLHeader::extract(&mut iso, tmp_file.as_mut(), game.dol.offset)
-        .map_err(|_| AppError::new("Could not extract dol."))?;
-
-    tmp_file.seek(SeekFrom::Start(0)).unwrap();
-    let header = DOLHeader::new(tmp_file.as_mut(), 0)
-        .expect("Failed to read header.");
-
-    let objdump_path = objdump_path
-        .map(|p| p.as_ref().to_path_buf())
-        .or_else(|| env::var("GCMOD_GNU_OBJDUMP").ok().map(|p| PathBuf::from(p)))
-        .unwrap_or_else(|| PathBuf::from("objdump"));
-
-    let disassembler = Disassembler::objdump_path(objdump_path.as_os_str())
-        .map_err(|_| AppError::new("GNU objdump required."))?;
-
-    let mut addr = 0;
-    for s in header.iter_segments() {
-        if s.size == 0 { continue }
-        println!("{}", s.to_string());
-
-        let disasm = disassembler.disasm(tmp_file.path(), s)
-            .expect("Failed to open DOL section");
-        for instr in disasm {
-            addr = instr.location.unwrap_or(addr + 4);
-            println!(
-                "{:#010x}: {:#010x} {}",
-                addr, instr.opcode, instr.text,
-            );
-            if instr.location.is_none() {
-                println!("                       ...");
-            }
-        }
-    }
     Ok(())
 }
 

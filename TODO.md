@@ -37,7 +37,6 @@
 * Add cool stuff for getting info on the rom like a tree command to view the file system as a tree
 * Improve the modules exported by lib.rs, like no more gamecube\_iso\_assistant::apploader::Apploader
 * Make methods or functions for adding sections or files to a btree map, maybe make a struct to generalize the thing going on with make\_sections\_btree
-* Make a function like Game::is\_valid\_rom that checks to see if it has the magic byte and if it's the right size?
 * Add an option to rebuild that doesn't rebuild the &&systemdata directory (should that be the default? probably?)
 * Improve error messages
 	* Add error for file permission errors
