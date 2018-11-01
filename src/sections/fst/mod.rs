@@ -175,26 +175,14 @@ impl FST {
     }
 
     fn entry_with_name<'a>(&'a self, name: impl AsRef<Path>, dir: &'a DirectoryEntry) -> Option<&'a Entry> {
-        // TODO: use find_map once it's stablized
-        // Some(e).filter(...).or_else(...) ??? (probably not)
-
-        // dir.iter_contents(&self.entries).find_map(|e| {
-            // if name.as_ref() == Path::new(&e.info().name) {
-                // Some(e)
-            // } else if let Some(sub_dir) = e.as_dir() {
-                // self.entry_with_name(name.as_ref(), sub_dir)
-            // }
-        // })
-
-        for e in dir.iter_contents(&self.entries) {
-            if name.as_ref() == Path::new(&e.info().name) {
-                return Some(e)
-            } else if let Some(sub_dir) = e.as_dir() {
-                let res = self.entry_with_name(name.as_ref(), sub_dir);
-                if res.is_some() { return res }
+        let name = name.as_ref();
+        dir.iter_contents(&self.entries).find_map(|e| {
+            if name.as_os_str() == &e.info().name[..] {
+                Some(e)
+            } else {
+                e.as_dir().and_then(|subdir| self.entry_with_name(name, subdir))
             }
-        }
-        None
+        })
     }
 
     pub fn get_parent_for_entry(&self, entry: &EntryInfo) -> Option<&Entry> {
