@@ -16,14 +16,16 @@
  * Add cool stuff for getting info on the rom like a tree command to view the file system as a tree
  * Add an option to rebuild that doesn't rebuild the &&systemdata directory (should that be the default? probably?)
    * This is in the code, there's just no command line option for it
- * Be smart about the order that files are put onto a rom, to save space (this only matters with a significant alignment)
-   * Then display available free space after creating a rom
+ * Display available free space after creating a rom (*current*)
+ * Write files toward the end of the iso to improve speed?
+   * Wait, does anything need to be aligned more than 2 bytes? (http://www.gc-forever.com/forums/viewtopic.php?p=1487&sid=a5f89e4c4ee820c1305b27babf50eccd#p1487)
  * Add a way to specify a certain alignment for files matching a regex?
  * Add more subcommands
  * Add a progress indicator for the rebuild command
  * Add options or commands specifically for apploaders, dol files, etc... so the whole iso isn't needed
  * Add a GCRebuilder compatibility mode (this'd just add weird extra zeros to some files, but that may not even be necessary idk)
  * Add offsets for other commands (info has it now)
+   * This could be used to support just passing a certain file to a subcommand that only needs that part of the rom, like a dol or fst
  * Make sure it works for Japanese ROMs and unicode
 
 ## Usage improvements/UX
@@ -58,10 +60,16 @@
  * Wouldn't it be more efficient to pass the iso BufReader directly to Entry::new, rather than copying it to an Array and passing that?
  * Anything in the source with a `TODO: ` label
  * Should FST be renamed to FileSystemTable?
+ * Stop using `file` to refer to entries in general. `file` in a name should always imply it's just a file, not a directory. `entry` needs to be the generic term for something that may be a file or directory.
+
+## Bugs
+ * The reported "files extracted/added" values are one to high because the root entry shouldn't really count
 
 ## Misc
  * Explain Rust style guidelines (basically it's the official guidelines except for matches)
  * Keep working on the documentation on Google Docs
  * Make an API (it'd be a separate repo of course)
  * Add tests
- * This is golden: http://www.gc-forever.com/forums/viewtopic.php?p=1487&sid=a5f89e4c4ee820c1305b27babf50eccd#p1487
+ * Add a description for the project on GitHub
+
+This is golden: http://www.gc-forever.com/forums/viewtopic.php?p=1487&sid=a5f89e4c4ee820c1305b27babf50eccd#p1487

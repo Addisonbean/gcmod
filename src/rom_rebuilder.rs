@@ -27,17 +27,28 @@ pub const ROM_SIZE: usize = 0x57058000;
 
 struct ROMConfig<'a> {
     alignment: u64,
-    root: &'a Path,
+    root_path: &'a Path,
     files: Vec<(u64, PathBuf)>,
 }
 
 struct FSTRebuilderInfo {
     entries: Vec<Entry>,
-    file_offset: u64,
+    file_system_size: u64,
     filename_offset: u64,
     file_count: usize,
     parent_index: Option<usize>,
     current_path: PathBuf,
+    alignment: u64,
+}
+
+impl FSTRebuilderInfo {
+    fn add_entry(&mut self, entry: Entry) {
+        if let Some(file) = entry.as_file() {
+            self.file_system_size += align(file.size as u64, self.alignment);
+            self.file_count += 1;
+        }
+        self.entries.push(entry);
+    }
 }
 
 struct FSTRebuilder<'a> {
@@ -62,7 +73,7 @@ impl<'a> FSTRebuilder<'a> {
             dol_size,
             config: ROMConfig {
                 alignment,
-                root: root.as_ref(),
+                root_path: root.as_ref(),
                 files: vec![],
             },
         })
@@ -78,32 +89,28 @@ impl<'a> FSTRebuilder<'a> {
                 full_path: "/".into(),
             },
             parent_index: 0,
-            // this value is updated later on, after self.rebuild_dir_info is called
             next_index: 0,
             file_count: 0,
         });
         let mut rb_info = FSTRebuilderInfo {
-            entries: vec![root_entry],
-            // Later in this function, `file_offset` will be offset more
-            // once the fst size is known (with the `file_system_offset` variable)
-            file_offset: 0,
+            entries: Vec::new(),
+            file_system_size: 0,
             filename_offset: 0,
             file_count: 0,
             parent_index: None,
-            current_path: "/".into(),
+            current_path: "".into(),
+            alignment: self.config.alignment,
         };
 
-        self.rebuild_dir_info(self.config.root, &mut rb_info)?;
-
-        rb_info.entries[0].as_dir_mut().unwrap().next_index =
-            rb_info.entries.len();
+        self.rebuild_dir_info(self.config.root_path, root_entry, &mut rb_info)?;
 
         let size = rb_info.entries.len() * 12 + rb_info.filename_offset as usize;
         let offset = align(APPLOADER_OFFSET + self.apploader_size as u64, self.config.alignment);
 
-        let dol_offset = offset + align(size as u64, self.config.alignment);
-        let file_system_offset = dol_offset + align(self.dol_size as u64, self.config.alignment);
+        let dol_offset = align(offset + size as u64, self.config.alignment);
+        let file_system_offset = align(dol_offset + self.dol_size as u64, self.config.alignment);
 
+        // Move this loop/don't iteratate over all these again?
         for e in &mut rb_info.entries {
             if let Some(ref mut f) = e.as_file_mut() {
                 f.file_offset += file_system_offset;
@@ -114,10 +121,10 @@ impl<'a> FSTRebuilder<'a> {
             offset,
             file_count: rb_info.file_count,
             entries: rb_info.entries,
-            total_file_system_size: rb_info.file_offset as usize,
+            total_file_system_size: rb_info.file_system_size as usize,
             size,
         };
-        let fst_path = self.config.root.join(FST_PATH);
+        let fst_path = self.config.root_path.join(FST_PATH);
         fst.write(File::create(&fst_path)?)?;
 
         Ok(HeaderRebuilder {
@@ -129,74 +136,83 @@ impl<'a> FSTRebuilder<'a> {
 
     fn rebuild_dir_info(
         &self,
-        path: impl AsRef<Path>,
+        fs_path: impl AsRef<Path>,
+        dir: Entry,
         rb_info: &mut FSTRebuilderInfo,
-    ) -> io::Result<usize> {
-        let mut total_file_count = 0;
-        for e in read_dir(path.as_ref())? {
+    ) -> io::Result<()> {
+        assert!(dir.is_dir());
+
+        let old_index = rb_info.parent_index;
+
+        rb_info.current_path.push(&dir.info().name);
+        rb_info.parent_index = Some(dir.info().index);
+
+        let dir_index = dir.info().index;
+        rb_info.add_entry(dir);
+
+        let previous_entry_count = rb_info.entries.len();
+        let mut immediate_children_added = 0;
+
+        for e in read_dir(fs_path.as_ref())? {
             let e = e?;
             let filename = e.file_name();
             let filename = filename.to_string_lossy();
 
-            if filename.starts_with(".") || filename == "&&systemdata" {
+            if FSTRebuilder::is_file_ignored(&*filename) {
                 continue
             }
-            total_file_count += 1;
+            immediate_children_added += 1;
 
-            let mut full_path = rb_info.current_path.clone();
-            full_path.push(&*filename);
+            let mut full_rom_path = rb_info.current_path.clone();
+            full_rom_path.push(&*filename);
+
             let index = rb_info.entries.len() as usize;
             let info = EntryInfo {
                 index,
                 name: filename.clone().into_owned(),
                 filename_offset: rb_info.filename_offset,
                 directory_index: rb_info.parent_index,
-                full_path,
+                full_path: full_rom_path,
             };
             // plus 1 for the null byte
             rb_info.filename_offset += info.name.chars().count() as u64 + 1;
 
             if e.file_type()?.is_dir() {
-                let old_index = rb_info.parent_index;
-
+                let parent_index = info.directory_index.unwrap_or(0);
                 let entry = Entry::Directory(DirectoryEntry {
                     info,
-                    parent_index: old_index.unwrap_or(0),
-                    next_index: index + 1,
+                    parent_index,
+                    next_index: index,
                     file_count: 0,
                 });
-                let index = rb_info.entries.len();
-                rb_info.entries.push(entry);
-
-                rb_info.parent_index = Some(index);
-                rb_info.current_path.push(&*filename);
-                let total_count_before = rb_info.entries.len();
-
-                let count = self.rebuild_dir_info(e.path(), rb_info)?;
-
-                rb_info.parent_index = old_index;
-                rb_info.current_path.pop();
-
-                let files_added = rb_info.entries.len() - total_count_before;
-
-                let mut dir = rb_info.entries[index].as_dir_mut().unwrap();
-                dir.file_count = count;
-                dir.next_index += files_added;
+                self.rebuild_dir_info(e.path(), entry, rb_info)?;
             } else {
-                // As noted in `rebuild`, this `file_offset` is not
-                // the final offset. It'd be added to later.
+                // This `file_offset` is not the final offset.
+                // It'd be added to later.
                 let entry = Entry::File(FileEntry {
                     info,
-                    file_offset: rb_info.file_offset,
+                    file_offset: rb_info.file_system_size,
                     size: e.metadata()?.len() as usize,
                 });
-                rb_info.file_offset +=
-                    align(entry.as_file().unwrap().size as u64, self.config.alignment);
-                rb_info.file_count += 1;
-                rb_info.entries.push(entry);
+                rb_info.add_entry(entry);
             }
         }
-        Ok(total_file_count)
+
+        rb_info.parent_index = old_index;
+        rb_info.current_path.pop();
+
+        let total_entries_added = rb_info.entries.len() - previous_entry_count;
+
+        let dir = rb_info.entries[dir_index].as_dir_mut().unwrap();
+
+        dir.file_count = immediate_children_added;
+        dir.next_index = dir_index + total_entries_added + 1;
+
+        Ok(())
+    }
+
+    fn is_file_ignored(name: &str) -> bool {
+        name.starts_with(".") || name == "&&systemdata"
     }
 }
 
@@ -208,7 +224,7 @@ struct HeaderRebuilder<'a> {
 
 impl<'a> HeaderRebuilder<'a> {
    fn rebuild(self) -> io::Result<FileSystemRebuilder<'a>> {
-        let header_path = self.config.root.join(HEADER_PATH);
+        let header_path = self.config.root_path.join(HEADER_PATH);
         let header_buf = BufReader::new(File::open(&header_path)?);
         let mut header = Header::new(header_buf, 0)?;
 
@@ -237,17 +253,17 @@ struct FileSystemRebuilder<'a> {
 
 impl<'a> FileSystemRebuilder<'a> {
     fn rebuild(mut self) -> io::Result<ROMRebuilder> {
-        let apploader_path = self.config.root.join(APPLOADER_PATH);
-        let dol_path = self.config.root.join(DOL_PATH);
-        let fst_path = self.config.root.join(FST_PATH);
-        let header_path = self.config.root.join(HEADER_PATH);
+        let apploader_path = self.config.root_path.join(APPLOADER_PATH);
+        let dol_path = self.config.root_path.join(DOL_PATH);
+        let fst_path = self.config.root_path.join(FST_PATH);
+        let header_path = self.config.root_path.join(HEADER_PATH);
 
         self.config.files.push((APPLOADER_OFFSET, apploader_path));
         self.config.files.push((self.header.dol_offset, dol_path));
         self.config.files.push((self.fst.offset, fst_path));
         self.config.files.push((0, header_path));
 
-        FileSystemRebuilder::fill_files(&mut self.config.files, self.fst.entries[0].as_dir().unwrap(), self.config.root, &self.fst);
+        FileSystemRebuilder::fill_files(&mut self.config.files, self.fst.entries[0].as_dir().unwrap(), self.config.root_path, &self.fst);
 
         self.config.files.sort();
 
@@ -265,7 +281,9 @@ impl<'a> FileSystemRebuilder<'a> {
         for entry in dir.iter_contents(&fst.entries) {
             match entry {
                 Entry::File(ref file) => {
+                    // let offset = if file.size == 0 { 0 } else { file.file_offset };
                     files.push((
+                        // offset,
                         file.file_offset,
                         prefix.as_ref().join(&file.info.name),
                     ));
@@ -305,7 +323,7 @@ impl ROMRebuilder {
                 header,
                 config: ROMConfig {
                     alignment,
-                    root: root.as_ref(),
+                    root_path: root.as_ref(),
                     files: vec![],
                 }
             }.rebuild()?.write(output)
@@ -322,6 +340,7 @@ impl ROMRebuilder {
         for (i, &(offset, ref filename)) in self.files.iter().enumerate() {
             let mut file = File::open(filename)?;
             let size = file.metadata()?.len();
+
             if size == 0 { continue }
 
             write_zeros((offset - bytes_written) as usize, &mut output)?;
