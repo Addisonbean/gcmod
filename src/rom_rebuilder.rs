@@ -142,18 +142,32 @@ impl<'a> FSTRebuilder<'a> {
     ) -> io::Result<()> {
         assert!(dir.is_dir());
 
-        let old_index = rb_info.parent_index;
+        let old_parent_index = rb_info.parent_index;
+        let dir_index = dir.info().index;
 
         rb_info.current_path.push(&dir.info().name);
         rb_info.parent_index = Some(dir.info().index);
 
-        let dir_index = dir.info().index;
         rb_info.add_entry(dir);
 
         let previous_entry_count = rb_info.entries.len();
-        let mut immediate_children_added = 0;
+        let immediate_children_added = self.add_entries_in_directory(fs_path, rb_info)?;
+        let total_entries_added = rb_info.entries.len() - previous_entry_count;
 
-        for e in read_dir(fs_path.as_ref())? {
+        let dir = rb_info.entries[dir_index].as_dir_mut().unwrap();
+
+        rb_info.current_path.pop();
+        rb_info.parent_index = old_parent_index;
+
+        dir.file_count = immediate_children_added;
+        dir.next_index = dir_index + total_entries_added + 1;
+
+        Ok(())
+    }
+
+    fn add_entries_in_directory(&self, path: impl AsRef<Path>, rb_info: &mut FSTRebuilderInfo) -> io::Result<usize> {
+        let mut immediate_children_added = 0;
+        for e in read_dir(path.as_ref())? {
             let e = e?;
             let filename = e.file_name();
             let filename = filename.to_string_lossy();
@@ -161,10 +175,6 @@ impl<'a> FSTRebuilder<'a> {
             if FSTRebuilder::is_file_ignored(&*filename) {
                 continue
             }
-            immediate_children_added += 1;
-
-            let mut full_rom_path = rb_info.current_path.clone();
-            full_rom_path.push(&*filename);
 
             let index = rb_info.entries.len() as usize;
             let info = EntryInfo {
@@ -172,7 +182,7 @@ impl<'a> FSTRebuilder<'a> {
                 name: filename.clone().into_owned(),
                 filename_offset: rb_info.filename_offset,
                 directory_index: rb_info.parent_index,
-                full_path: full_rom_path,
+                full_path: rb_info.current_path.join(&*filename),
             };
             // plus 1 for the null byte
             rb_info.filename_offset += info.name.chars().count() as u64 + 1;
@@ -182,7 +192,7 @@ impl<'a> FSTRebuilder<'a> {
                 let entry = Entry::Directory(DirectoryEntry {
                     info,
                     parent_index,
-                    next_index: index,
+                    next_index: 0,
                     file_count: 0,
                 });
                 self.rebuild_dir_info(e.path(), entry, rb_info)?;
@@ -196,19 +206,9 @@ impl<'a> FSTRebuilder<'a> {
                 });
                 rb_info.add_entry(entry);
             }
+            immediate_children_added += 1;
         }
-
-        rb_info.parent_index = old_index;
-        rb_info.current_path.pop();
-
-        let total_entries_added = rb_info.entries.len() - previous_entry_count;
-
-        let dir = rb_info.entries[dir_index].as_dir_mut().unwrap();
-
-        dir.file_count = immediate_children_added;
-        dir.next_index = dir_index + total_entries_added + 1;
-
-        Ok(())
+        Ok(immediate_children_added)
     }
 
     fn is_file_ignored(name: &str) -> bool {
