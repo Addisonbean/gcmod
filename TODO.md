@@ -16,7 +16,6 @@
  * Add cool stuff for getting info on the rom like a tree command to view the file system as a tree
  * Add an option to rebuild that doesn't rebuild the &&systemdata directory (should that be the default? probably?)
    * This is in the code, there's just no command line option for it
- * Display available free space after creating a rom
  * Write files toward the end of the iso to improve speed?
    * Wait, does anything need to be aligned more than 2 bytes? (http://www.gc-forever.com/forums/viewtopic.php?p=1487&sid=a5f89e4c4ee820c1305b27babf50eccd#p1487)
  * Add a way to specify a certain alignment for files matching a regex?

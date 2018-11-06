@@ -142,9 +142,13 @@ fn rebuild_iso(
     };
 
     let iso_path = iso_path.as_ref();
+    let root_path = root_path.as_ref();
 
     if iso_path.exists() {
         return Err(AppError::new(format!("{} already exists.", iso_path.display())));
+    }
+    if !root_path.exists() {
+        return Err(AppError::new("Couldn't find root."));
     }
 
     let iso = File::create(iso_path).unwrap(); 

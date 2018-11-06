@@ -29,6 +29,7 @@ struct ROMConfig<'a> {
     alignment: u64,
     root_path: &'a Path,
     files: Vec<(u64, PathBuf)>,
+    space_used: Option<usize>,
 }
 
 struct FSTRebuilderInfo {
@@ -75,11 +76,12 @@ impl<'a> FSTRebuilder<'a> {
                 alignment,
                 root_path: root.as_ref(),
                 files: vec![],
+                space_used: None,
             },
         })
     }
 
-    fn rebuild(self) -> io::Result<HeaderRebuilder<'a>> {
+    fn rebuild(mut self) -> io::Result<HeaderRebuilder<'a>> {
         let root_entry = Entry::Directory(DirectoryEntry {
             info: EntryInfo {
                 index: 0,
@@ -111,9 +113,11 @@ impl<'a> FSTRebuilder<'a> {
         let file_system_offset = align(dol_offset + self.dol_size as u64, self.config.alignment);
 
         // Move this loop/don't iteratate over all these again?
+        let mut max_eof = 0;
         for e in &mut rb_info.entries {
             if let Some(ref mut f) = e.as_file_mut() {
                 f.file_offset += file_system_offset;
+                max_eof = cmp::max(max_eof, f.file_offset as usize + f.size);
             }
         }
 
@@ -126,6 +130,8 @@ impl<'a> FSTRebuilder<'a> {
         };
         let fst_path = self.config.root_path.join(FST_PATH);
         fst.write(File::create(&fst_path)?)?;
+
+        self.config.space_used = Some(max_eof);
 
         Ok(HeaderRebuilder {
             dol_offset,
@@ -269,6 +275,7 @@ impl<'a> FileSystemRebuilder<'a> {
 
         Ok(ROMRebuilder {
             files: self.config.files,
+            space_used: self.config.space_used,
         })
     }
 
@@ -303,19 +310,21 @@ impl<'a> FileSystemRebuilder<'a> {
 
 pub struct ROMRebuilder {
     files: Vec<(u64, PathBuf)>,
+    space_used: Option<usize>,
 }
 
 impl ROMRebuilder {
     pub fn rebuild(root: impl AsRef<Path>, alignment: u64, output: impl Write, rebuild_systemdata: bool) -> io::Result<()> {
+        let root = root.as_ref();
         if rebuild_systemdata {
-            FSTRebuilder::new(root.as_ref(), alignment)?
+            FSTRebuilder::new(root, alignment)?
                 .rebuild()?
                 .rebuild()?
                 .rebuild()?
                 .write(output)
         } else {
-            let fst_file = File::open(root.as_ref().join(FST_PATH))?;
-            let header_file = File::open(root.as_ref().join(HEADER_PATH))?;
+            let fst_file = File::open(root.join(FST_PATH))?;
+            let header_file = File::open(root.join(HEADER_PATH))?;
             let fst = FST::new(BufReader::new(fst_file), 0)?;
             let header = Header::new(BufReader::new(header_file), 0)?;
             FileSystemRebuilder {
@@ -323,8 +332,9 @@ impl ROMRebuilder {
                 header,
                 config: ROMConfig {
                     alignment,
-                    root_path: root.as_ref(),
+                    root_path: root,
                     files: vec![],
+                    space_used: None,
                 }
             }.rebuild()?.write(output)
         }
@@ -362,7 +372,14 @@ impl ROMRebuilder {
             print!("\r{}/{} files added.", i + 1, total_files);
         }
         println!();
-        write_zeros(ROM_SIZE - bytes_written as usize, &mut output)
+        write_zeros(ROM_SIZE - bytes_written as usize, &mut output)?;
+
+        if let Some(space) = self.space_used {
+            let percent_used = ((space as f64 / ROM_SIZE as f64) * 100.0) as usize;
+            println!("{:2}% of space filled ({}/{} bytes).", percent_used, space, ROM_SIZE);
+        }
+
+        Ok(())
     }
 }
 
