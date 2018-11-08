@@ -14,7 +14,7 @@
    * Where would this be used? Info?
  * Patch file generator for mods???
  * Add cool stuff for getting info on the rom like a tree command to view the file system as a tree
- * Add an option to rebuild that doesn't rebuild the &&systemdata directory (should that be the default? probably?)
+ * Add an option to rebuild that doesn't rebuild the &&systemdata directory (should that be the default? probably?) (*current*)
    * This is in the code, there's just no command line option for it
  * Write files toward the end of the iso to improve speed?
    * Wait, does anything need to be aligned more than 2 bytes? (http://www.gc-forever.com/forums/viewtopic.php?p=1487&sid=a5f89e4c4ee820c1305b27babf50eccd#p1487)
@@ -63,7 +63,8 @@
  * Make a type alias for Path to differentiate between paths on the rom and on the computer?
 
 ## Bugs
- * The reported "files extracted/added" values are one to high because the root entry shouldn't really count
+ * The reported "files extracted/added" values are one to high because the root entry shouldn't really count (or is it cause of system data? cause directories aren't counted)
+ * When --no-rebuild-fst is passed to rebuild, shouldn't the resulting iso be identical to the original?
 
 ## Misc
  * Explain Rust style guidelines (basically it's the official guidelines except for matches)

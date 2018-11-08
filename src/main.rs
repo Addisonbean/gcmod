@@ -42,7 +42,7 @@ fn main() -> AppResult {
             (@arg offset: -o --offset +takes_value
                 conflicts_with[type mem_addr]
                 "Print information about whichever section is at the given offset.")
-            (@arg mem_addr: -m --mem_addr +takes_value
+            (@arg mem_addr: -m --("mem-addr") +takes_value
                 conflicts_with[type offset]
                 "Print information about the DOL segment that will be loaded into a given address in memory.")
         )
@@ -59,6 +59,7 @@ fn main() -> AppResult {
             (about: "Rebuilds a ROM.")
             (@arg root_path: +required)
             (@arg output: +required)
+            (@arg no_rebuild_fst: --("no-rebuild-fst") "It this flag is passed, the existing file system table will be used, rather than creating a new one.")
             (@arg alignment: -a --alignment +takes_value
                 "Specifies the alignment in bytes for the files in the filesystem. The default is 32768 bytes (32KiB) and the minimum is 2 bytes.")
         )
@@ -94,7 +95,7 @@ fn main() -> AppResult {
                 cmd.value_of("root_path").unwrap(),
                 cmd.value_of("output").unwrap(),
                 cmd.value_of("alignment"),
-                true,
+                cmd.is_present("no_rebuild_fst"),
             ),
         _ => unreachable!(),
     }
