@@ -115,4 +115,10 @@ impl fmt::Debug for AppError {
     }
 }
 
+impl From<io::Error> for AppError {
+    fn from(e: io::Error) -> AppError {
+        AppError::new(e.to_string())
+    }
+}
+
 pub type AppResult = Result<(), AppError>;

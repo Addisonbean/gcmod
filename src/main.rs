@@ -117,9 +117,7 @@ fn extract_iso(
     }
 
     let (mut game, mut iso) = try_to_open_game(input.as_ref(), 0)?;
-    game.extract(&mut iso, output).map_err(|_| AppError::new("Failed to write files."))?;
-
-    Ok(())
+    game.extract(&mut iso, output).map_err(|_| AppError::new("Failed to write files."))
 }
 
 fn print_iso_info(input: impl AsRef<Path>, offset: u64, style: NumberStyle) -> AppResult {
@@ -152,7 +150,7 @@ fn rebuild_iso(
         return Err(AppError::new("Couldn't find root."));
     }
 
-    let iso = File::create(iso_path).unwrap(); 
+    let iso = File::create(iso_path)?;
     if let Err(_) = ROMRebuilder::rebuild(root_path, alignment, iso, rebuild_systemdata) {
         remove_file(iso_path).unwrap();
         Err(AppError::new("Couldn't rebuild iso."))

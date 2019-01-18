@@ -3,9 +3,7 @@
 ## Features
  * Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
  * Add more flags and LS\_COLORS to the ls subcommand
- * Add a disassembler
-   * Look into http://www.keystone-engine.org/
-   * Don't print to stdout, but rather a file
+ * Add a disassembler (in progress, see the disasm branch)
    * Add the ability to pick which segment(s) are disassembled
    * Sometimes I just want to disassemble a single instruction, add that.
  * Make the info command give more useful info (plus add verbosity levels with -v, -vv, and so on...)
@@ -14,17 +12,14 @@
    * Where would this be used? Info?
  * Patch file generator for mods???
  * Add cool stuff for getting info on the rom like a tree command to view the file system as a tree
- * Add an option to rebuild that doesn't rebuild the &&systemdata directory (should that be the default? probably?) (*current*)
-   * This is in the code, there's just no command line option for it
  * Write files toward the end of the iso to improve speed?
    * Wait, does anything need to be aligned more than 2 bytes? (http://www.gc-forever.com/forums/viewtopic.php?p=1487&sid=a5f89e4c4ee820c1305b27babf50eccd#p1487)
+   * Also, this only improves loading speed when running a rom from a disk. Is that even worth doing?
  * Add a way to specify a certain alignment for files matching a regex?
  * Add more subcommands
  * Add a progress indicator for the rebuild command
  * Add options or commands specifically for apploaders, dol files, etc... so the whole iso isn't needed
  * Add a GCRebuilder compatibility mode (this'd just add weird extra zeros to some files, but that may not even be necessary idk)
- * Add offsets for other commands (info has it now)
-   * This could be used to support just passing a certain file to a subcommand that only needs that part of the rom, like a dol or fst
  * Make sure it works for Japanese ROMs and unicode
 
 ## Usage improvements/UX
@@ -61,6 +56,7 @@
  * Should FST be renamed to FileSystemTable?
  * Stop using `file` to refer to entries in general. `file` in a name should always imply it's just a file, not a directory. `entry` needs to be the generic term for something that may be a file or directory.
  * Make a type alias for Path to differentiate between paths on the rom and on the computer?
+ * Rename `Game` to `Rom`
 
 ## Bugs
  * The reported "files extracted/added" values are one to high because the root entry shouldn't really count (or is it cause of system data? cause directories aren't counted)
