@@ -7,7 +7,7 @@
    * Add the ability to pick which segment(s) are disassembled
    * Sometimes I just want to disassemble a single instruction, add that.
  * Make the info command give more useful info (plus add verbosity levels with -v, -vv, and so on...)
- * Use std::path::MAIN\_SEPARATOR for Windows support
+ * Make sure it works on Windows
  * Add a thing like print\_layout for the dol, that prints brief information about all the segments (support -v for added verbosity)
    * Where would this be used? Info?
  * Patch file generator for mods???

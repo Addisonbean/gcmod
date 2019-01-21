@@ -1,7 +1,7 @@
 use std::cmp;
 use std::fs::{File, read_dir};
 use std::io::{self, BufReader, Write};
-use std::path::{Path, PathBuf};
+use std::path::{self, Path, PathBuf};
 use std::sync::Mutex;
 
 use sections::apploader::APPLOADER_OFFSET;
@@ -85,7 +85,7 @@ impl<'a> FSTRebuilder<'a> {
         let root_entry = Entry::Directory(DirectoryEntry {
             info: EntryInfo {
                 index: 0,
-                name: "/".to_owned(),
+                name: path::MAIN_SEPARATOR.to_string(),
                 filename_offset: 0,
                 directory_index: None,
                 full_path: "/".into(),

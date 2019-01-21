@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::fs::{create_dir_all, File};
 use std::io::{self, BufRead, Seek, SeekFrom, Write};
-use std::path::{Path, PathBuf};
+use std::path::{self, Path, PathBuf};
 
 use byteorder::{BigEndian, ReadBytesExt};
 
@@ -51,10 +51,10 @@ pub struct DirectoryEntry {
 
     // The fields below are not actually stored on the ROM:
 
-	// This is the amount of files in the directory. This is different from
-	// `next_index - info.index` because this field doesn't include the file_count
-	// of it's subdirectories
-	pub file_count: usize,
+    // This is the amount of files in the directory. This is different from
+    // `next_index - info.index` because this field doesn't include the file_count
+    // of it's subdirectories
+    pub file_count: usize,
 }
 
 #[derive(Debug)]
@@ -96,8 +96,8 @@ impl Entry {
                 info,
                 parent_index: f2 as usize,
                 next_index: f3 as usize,
-				// TODO: I don't like setting this to an incorrect, default value here...
-				file_count: 0,
+                // TODO: I don't like setting this to an incorrect, default value here...
+                file_count: 0,
             }),
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid byte in entry: {:#x}", entry[0]))),
         })
@@ -185,7 +185,7 @@ impl Entry {
     ) -> io::Result<()> {
         let info = self.info_mut();
         if info.index == 0 {
-            info.name = "/".to_owned();
+            info.name = path::MAIN_SEPARATOR.to_string();
         } else {
             reader.seek(SeekFrom::Start(str_tbl_addr + info.filename_offset))?;
             // TODO: don't use unsafe here
