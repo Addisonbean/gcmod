@@ -325,8 +325,11 @@ impl ROMRebuilder {
         } else {
             let fst_file = File::open(root.join(FST_PATH))?;
             let header_file = File::open(root.join(HEADER_PATH))?;
-            let fst = FST::new(BufReader::new(fst_file), 0)?;
+
+            let mut fst = FST::new(BufReader::new(fst_file), 0)?;
             let header = Header::new(BufReader::new(header_file), 0)?;
+            fst.offset = header.fst_offset;
+
             FileSystemRebuilder {
                 fst,
                 header,

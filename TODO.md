@@ -57,6 +57,7 @@
  * Stop using `file` to refer to entries in general. `file` in a name should always imply it's just a file, not a directory. `entry` needs to be the generic term for something that may be a file or directory.
  * Make a type alias for Path to differentiate between paths on the rom and on the computer?
  * Rename `Game` to `Rom`
+ * Don't set a section's `offset` to the offset it was read from, that is often wrong...
 
 ## Bugs
  * The reported "files extracted/added" values are one to high because the root entry shouldn't really count (or is it cause of system data? cause directories aren't counted)

@@ -95,7 +95,7 @@ fn main() -> AppResult {
                 cmd.value_of("root_path").unwrap(),
                 cmd.value_of("output").unwrap(),
                 cmd.value_of("alignment"),
-                cmd.is_present("no_rebuild_fst"),
+                !cmd.is_present("no_rebuild_fst"),
             ),
         _ => unreachable!(),
     }
