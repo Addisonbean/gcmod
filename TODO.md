@@ -2,13 +2,13 @@
 
 ## Features
  * Add verbosity levels, with -v, and maybe even -vv (let's not get crazy though)
+   * Hide the "Segments" section for the dol info unless in verbose mode
  * Add more flags and LS\_COLORS to the ls subcommand
  * Add a disassembler (in progress, see the disasm branch)
    * Add the ability to pick which segment(s) are disassembled
    * Sometimes I just want to disassemble a single instruction, add that.
  * Make the info command give more useful info (plus add verbosity levels with -v, -vv, and so on...)
  * Make sure it works on Windows
- * Add a thing like print\_layout for the dol, that prints brief information about all the segments (support -v for added verbosity)
    * Where would this be used? Info?
  * Patch file generator for mods???
  * Add cool stuff for getting info on the rom like a tree command to view the file system as a tree

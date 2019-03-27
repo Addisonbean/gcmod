@@ -96,12 +96,9 @@ impl<'a> LayoutSection<'a> for Segment {
     }
 
     fn print_info(&self, style: NumberStyle) {
-        println!("Segment id: {}", format_u64(self.seg_num, style));
-        println!(
-            "Segment type: {}",
-            self.seg_type.to_string(self.seg_num),
-        );
+        println!("Segment name: {}", self.seg_type.to_string(self.seg_num));
         println!("Offset: {}", format_u64(self.offset, style));
         println!("Size: {}", format_usize(self.size, style));
+        println!("Loading address: {}", format_u64(self.loading_address, style));
     }
 }

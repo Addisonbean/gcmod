@@ -190,6 +190,11 @@ impl<'a> LayoutSection<'a> for DOLHeader {
         println!("Size: {} bytes", format_usize(self.dol_size, style));
         println!("Header Size: {} bytes", format_usize(DOL_HEADER_LEN, style));
         println!("Entry point: {}", format_u64(self.entry_point, style));
+        println!("Segments:");
+        for s in &self.segments {
+            println!();
+            s.print_info(style);
+        }
     }
 }
 
