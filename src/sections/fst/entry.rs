@@ -183,6 +183,7 @@ impl Entry {
         mut reader: impl BufRead + Seek,
         str_tbl_addr: u64,
     ) -> io::Result<()> {
+        let is_directory = self.is_dir();
         let info = self.info_mut();
         if info.index == 0 {
             info.name = path::MAIN_SEPARATOR.to_string();
@@ -194,6 +195,9 @@ impl Entry {
                 reader.read_until(0, &mut bytes)?;
                 // this gets rid of the trailing null byte
                 bytes.pop();
+            }
+            if is_directory {
+                info.name.push(path::MAIN_SEPARATOR);
             }
         }
         Ok(())
