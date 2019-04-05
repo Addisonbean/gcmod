@@ -1,6 +1,5 @@
 pub mod entry;
 
-use std::borrow::Cow;
 use std::cmp::max;
 use std::collections::BTreeMap;
 use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
@@ -8,21 +7,16 @@ use std::path::{Path, PathBuf};
 
 use byteorder::{BigEndian, ReadBytesExt};
 
-use sections::layout_section::{
-    LayoutSection,
-    SectionType,
-    UniqueLayoutSection,
-    UniqueSectionType
-};
+use sections::Section;
 use ::{
     extract_section,
     format_u64,
     format_usize,
     NumberStyle,
-    paths::FST_PATH,
 };
 
 use self::entry::{DirectoryEntry, Entry, EntryInfo, ENTRY_SIZE};
+
 
 pub const FST_OFFSET_OFFSET: u64 = 0x0424; 
 pub const FST_SIZE_OFFSET: u64 = 0x0428;
@@ -202,23 +196,7 @@ impl FST {
     }
 }
 
-impl<'a> LayoutSection<'a> for FST {
-    fn name(&self) -> Cow<'static, str> {
-        FST_PATH.into()
-    }
-
-    fn section_type(&self) -> SectionType {
-        SectionType::FST
-    }
-
-    fn len(&self) -> usize {
-        self.size
-    }
-
-    fn start(&self) -> u64 {
-        self.offset
-    }
-
+impl Section for FST {
     fn print_info(&self, style: NumberStyle) {
         println!("Offset: {}", format_u64(self.offset, style));
         println!("Total entries: {}", format_usize(self.entries.len(), style));
@@ -229,19 +207,12 @@ impl<'a> LayoutSection<'a> for FST {
         );
         println!("Size: {} bytes", format_usize(self.size, style));
     }
-}
 
-impl<'a> UniqueLayoutSection<'a> for FST {
-    fn section_type(&self) -> UniqueSectionType {
-        UniqueSectionType::FST
+    fn start(&self) -> u64 {
+        self.offset
     }
 
-    fn with_offset<R>(file: R, offset: u64) -> io::Result<FST>
-    where
-        Self: Sized,
-        R: BufRead + Seek,
-    {
-        FST::new(file, offset)
+    fn size(&self) -> usize {
+        self.size
     }
 }
-

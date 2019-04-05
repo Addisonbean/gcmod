@@ -1,9 +1,9 @@
-use std::borrow::Cow;
+use std::io::{Write, Seek, SeekFrom, Read, self};
 
 use regex::Regex;
 
-use sections::layout_section::{LayoutSection, SectionType};
-use ::{format_u64, format_usize, NumberStyle, parse_as_u64};
+use ::{format_u64, format_usize, NumberStyle, parse_as_u64, extract_section};
+use sections::Section;
 
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub enum SegmentType {
@@ -76,29 +76,33 @@ impl Segment {
             }).ok()
         })
     }
+
+    // TODO: put in a trait
+    pub fn extract<R, W>(&self, mut iso: R, output: W) -> io::Result<()>
+    where
+        Self: Sized,
+        R: Read + Seek,
+        W: Write,
+    {
+        iso.seek(SeekFrom::Start(self.offset))?;
+        extract_section(iso, self.size, output)
+    }
 }
 
-impl<'a> LayoutSection<'a> for Segment {
-    fn name(&self) -> Cow<'static, str> {
-        self.to_string().into()
-    }
 
-    fn section_type(&self) -> SectionType {
-        SectionType::DOLSegment
-    }
-
-    fn len(&self) -> usize {
-        self.size
+impl Section for Segment {
+    fn print_info(&self, style: NumberStyle) {
+        println!("Segment name: {}", self.seg_type.to_string(self.seg_num));
+        println!("Offset: {}", format_u64(self.offset, style));
+        println!("Size: {}", format_usize(self.size, style));
+        println!("Loading address: {}", format_u64(self.loading_address, style));
     }
 
     fn start(&self) -> u64 {
         self.offset
     }
 
-    fn print_info(&self, style: NumberStyle) {
-        println!("Segment name: {}", self.seg_type.to_string(self.seg_num));
-        println!("Offset: {}", format_u64(self.offset, style));
-        println!("Size: {}", format_usize(self.size, style));
-        println!("Loading address: {}", format_u64(self.loading_address, style));
+    fn size(&self) -> usize {
+        self.size
     }
 }

@@ -1,12 +1,11 @@
-use std::borrow::Cow;
 use std::fs::{create_dir_all, File};
 use std::io::{self, BufRead, Seek, SeekFrom, Write};
 use std::path::{self, Path, PathBuf};
 
 use byteorder::{BigEndian, ReadBytesExt};
 
-use sections::layout_section::{LayoutSection, SectionType};
 use ::{extract_section, format_u64, format_usize, NumberStyle};
+use sections::Section;
 
 pub const ENTRY_SIZE: usize = 12;
 
@@ -305,27 +304,19 @@ impl<'a> Iterator for DirectoryIter<'a> {
     }
 }
 
-impl<'a> LayoutSection<'a> for FileEntry {
-    fn name(&'a self) -> Cow<'a, str> {
-        self.info.full_path.to_string_lossy().into()
-    }
-
-    fn section_type(&self) -> SectionType {
-        SectionType::File
-    }
-
-    fn len(&self) -> usize {
-        self.size
+impl Section for FileEntry {
+    fn print_info(&self, style: NumberStyle) {
+        println!("Path: {}", self.info.full_path.to_string_lossy());
+        println!("Offset: {}", format_u64(self.file_offset, style));
+        println!("Size: {}", format_usize(self.size, style));
     }
 
     fn start(&self) -> u64 {
         self.file_offset
     }
 
-    fn print_info(&self, style: NumberStyle) {
-        println!("Path: {}", self.info.full_path.to_string_lossy());
-        println!("Offset: {}", format_u64(self.file_offset, style));
-        println!("Size: {}", format_usize(self.size, style));
+    fn size(&self) -> usize {
+        self.size
     }
 }
 

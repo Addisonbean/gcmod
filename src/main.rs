@@ -20,9 +20,15 @@ use gcmod::{
     NumberStyle,
     parse_as_u64,
     ROM_SIZE,
+    sections::{
+        apploader::Apploader,
+        dol::DOLHeader,
+        fst::FST,
+        header::Header,
+        Section,
+    },
 };
 use gcmod::ROMRebuilder;
-use gcmod::sections::layout_section::{LayoutSection, UniqueSectionType};
 
 fn main() -> AppResult {
     let app = clap_app!(app =>
@@ -161,49 +167,55 @@ fn rebuild_iso(
 
 fn get_info(
     path: impl AsRef<Path>,
-    section: Option<&str>,
+    section_type: Option<&str>,
     offset: Option<&str>,
     mem_addr: Option<&str>,
     style: NumberStyle,
 ) -> AppResult {
-    use gcmod::sections::layout_section::UniqueSectionType::*;
-
     if let Some(offset) = offset {
         find_offset(path.as_ref(), offset, style)
     } else if let Some(addr) = mem_addr {
         find_mem_addr(path.as_ref(), addr, style)
     } else {
-        match section {
-            Some("header") => print_section_info(path.as_ref(), &Header, style),
-            Some("dol") => print_section_info(path.as_ref(), &DOLHeader, style),
-            Some("fst") => print_section_info(path.as_ref(), &FST, style),
-            Some("apploader") | Some("app_loader") | Some("app-loader") =>
-                print_section_info(path.as_ref(), &Apploader, style),
-            Some("layout") => print_layout(path.as_ref()),
+        let mut f = File::open(path.as_ref())
+            .map(BufReader::new)
+            .map_err(|_| AppError::new("Couldn't open file"))?;
+        let game = Game::open(&mut f, 0);
+        match section_type {
+            Some("header") => {
+                game
+                    .map(|g| g.header)
+                    .or_else(|_| Header::new(f, 0))
+                    .map_err(|_| AppError::new("Invalid iso or header"))?
+                    .print_info(style);
+            },
+            Some("dol") => {
+                game
+                    .map(|g| g.dol)
+                    .or_else(|_| DOLHeader::new(f, 0))
+                    .map_err(|_| AppError::new("Invalid iso or DOL"))?
+                    .print_info(style);
+            },
+            Some("fst") => {
+                game
+                    .map(|g| g.fst)
+                    .or_else(|_| FST::new(f, 0))
+                    .map_err(|_| AppError::new("Invalid iso or file system table"))?
+                    .print_info(style);
+            },
+            Some("apploader") | Some("app_loader") | Some("app-loader") => {
+                game
+                    .map(|g| g.apploader)
+                    .or_else(|_| Apploader::new(f, 0))
+                    .map_err(|_| AppError::new("Invalid iso or apploader"))?
+                    .print_info(style);
+            },
+            Some("layout") => { print_layout(path.as_ref())?; }
             Some(_) => unreachable!(),
-            None => print_iso_info(path.as_ref(), 0, style),
+            None => { print_iso_info(path.as_ref(), 0, style)? },
         }
+        Ok(())
     }
-}
-
-fn print_section_info(
-    path: impl AsRef<Path>,
-    section_type: &UniqueSectionType,
-    style: NumberStyle,
-) -> AppResult {
-    let mut f = File::open(path.as_ref())
-        .map(BufReader::new)
-        .map_err(|_| AppError::new("Couldn't open file"))?;
-
-    if let Ok(g) = Game::open(&mut f, 0) {
-        g.get_section_by_type(section_type).print_info(style);
-    } else if let Ok(s) = section_type.with_offset(&mut f, 0) {
-        s.print_info(style);
-    } else {
-        return Err(AppError::new("Invalid file"))
-    }
-
-    Ok(())
 }
 
 fn print_layout(path: impl AsRef<Path>) -> AppResult {
@@ -239,7 +251,7 @@ fn find_mem_addr(path: impl AsRef<Path>, mem_addr: &str, style: NumberStyle) -> 
         .ok_or_else(|| AppError::new("No DOL segment will be loaded at this address."))?;
 
     let offset = mem_addr - seg.loading_address;
-    println!("Segment: {}", seg.name());
+    println!("Segment: {}", seg.to_string());
     println!("Offset from start of segment: {}", format_u64(offset, style));
 
     Ok(())

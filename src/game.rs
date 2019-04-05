@@ -11,12 +11,13 @@ use sections::fst::{
     FST,
 };
 use sections::header::{GAME_HEADER_SIZE, Header};
-use sections::layout_section::{LayoutSection, UniqueLayoutSection, UniqueSectionType};
 use ::{
     format_u64,
     NumberStyle,
     paths::*,
 };
+
+use sections::Section;
 
 pub const ROM_SIZE: usize = 0x57058000;
 
@@ -52,24 +53,19 @@ impl Game {
             + self.dol.iter_segments().count()
             + self.fst.entries.len();
 
-        let mut layout: Vec<&LayoutSection> = Vec::with_capacity(size);
-
+        let mut layout: Vec<&dyn Section> = Vec::with_capacity(size);
         layout.push(&self.header);
         layout.push(&self.apploader);
-
         layout.push(&self.dol);
-
-        layout.extend(
-            self.dol.iter_segments().map(|s| s as &dyn LayoutSection)
-        );
-
+        for s in self.dol.iter_segments() {
+            layout.push(s);
+        }
         layout.push(&self.fst);
-
         for f in self.fst.entries.iter().filter_map(|e| e.as_file()) {
             layout.push(f);
         }
 
-        layout.sort_unstable();
+        layout.sort_unstable_by_key(|info| info.start());
 
         ROMLayout(layout)
     }
@@ -119,19 +115,6 @@ impl Game {
         });
         println!();
         res
-    }
-
-    pub fn get_section_by_type(
-        &self,
-        section_type: &UniqueSectionType,
-    ) -> &UniqueLayoutSection {
-        use sections::layout_section::UniqueSectionType::*;
-        match section_type {
-            Header => &self.header as &UniqueLayoutSection,
-            Apploader => &self.apploader as &UniqueLayoutSection,
-            DOLHeader => &self.dol as &UniqueLayoutSection,
-            FST => &self.fst as &UniqueLayoutSection,
-        }
     }
 
     pub fn extract_section_with_name(
@@ -219,11 +202,10 @@ impl Game {
     }
 }
 
-// Use BinaryHeap?
-pub struct ROMLayout<'a>(Vec<&'a LayoutSection<'a>>);
+pub struct ROMLayout<'a>(Vec<&'a dyn Section>);
 
 impl<'a> ROMLayout<'a> {
-    pub fn find_offset(&'a self, offset: u64) -> Option<&'a LayoutSection<'a>> {
+    pub fn find_offset(&'a self, offset: u64) -> Option<&'a dyn Section> {
         self.0.binary_search_by(|s| s.compare_offset(offset))
             .ok()
             .map(|i| self.0[i])
@@ -233,4 +215,3 @@ impl<'a> ROMLayout<'a> {
         self.0.len()
     }
 }
-

@@ -1,27 +1,21 @@
 pub mod segment;
 
-use std::borrow::Cow;
 use std::cmp::max;
-use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::iter::Iterator;
 
 use byteorder::{BigEndian, ReadBytesExt};
 
-use sections::layout_section::{
-    LayoutSection,
-    SectionType,
-    UniqueLayoutSection,
-    UniqueSectionType,
-};
 use ::{
     extract_section,
     format_u64,
     format_usize,
     NumberStyle,
-    paths::DOL_PATH,
 };
 
 use self::segment::{Segment, SegmentType};
+
+use sections::Section;
 
 const TEXT_SEG_COUNT: usize = 7;
 const DATA_SEG_COUNT: usize = 11;
@@ -168,23 +162,7 @@ impl DOLHeader {
     }
 }
 
-impl<'a> LayoutSection<'a> for DOLHeader {
-    fn name(&self) -> Cow<'static, str> {
-        DOL_PATH.into()
-    }
-
-    fn section_type(&self) -> SectionType {
-        SectionType::DOLHeader
-    }
-
-    fn len(&self) -> usize {
-        DOL_HEADER_LEN
-    }
-
-    fn start(&self) -> u64 {
-        self.offset
-    }
-
+impl Section for DOLHeader {
     fn print_info(&self, style: NumberStyle) {
         println!("Offset: {}", format_u64(self.offset, style));
         println!("Size: {} bytes", format_usize(self.dol_size, style));
@@ -196,19 +174,12 @@ impl<'a> LayoutSection<'a> for DOLHeader {
             s.print_info(style);
         }
     }
-}
 
-impl<'a> UniqueLayoutSection<'a> for DOLHeader {
-    fn section_type(&self) -> UniqueSectionType {
-        UniqueSectionType::DOLHeader
+    fn start(&self) -> u64 {
+        self.offset
     }
 
-    fn with_offset<R>(file: R, offset: u64) -> io::Result<DOLHeader>
-    where
-        Self: Sized,
-        R: BufRead + Seek,
-    {
-        DOLHeader::new(file, offset)
+    fn size(&self) -> usize {
+        DOL_HEADER_LEN
     }
 }
-

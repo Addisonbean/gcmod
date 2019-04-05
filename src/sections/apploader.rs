@@ -1,22 +1,16 @@
-use std::borrow::Cow;
-use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 
 use byteorder::{BigEndian, ReadBytesExt};
 
-use sections::layout_section::{
-    LayoutSection,
-    SectionType,
-    UniqueLayoutSection,
-    UniqueSectionType,
-};
 use ::{
     align,
     extract_section,
     format_u64,
     format_usize,
     NumberStyle,
-    paths::APPLOADER_PATH,
 };
+
+use sections::Section;
 
 pub const APPLOADER_OFFSET: u64 = 0x2440;
 const APPLOADER_DATE_SIZE: usize = 0x0A;
@@ -76,23 +70,7 @@ impl Apploader {
     }
 }
 
-impl<'a> LayoutSection<'a> for Apploader {
-    fn name(&self) -> Cow<'static, str> {
-        APPLOADER_PATH.into()
-    }
-
-    fn section_type(&self) -> SectionType {
-        SectionType::Apploader
-    }
-
-    fn len(&self) -> usize {
-        self.total_size()
-    }
-
-    fn start(&self) -> u64 {
-        APPLOADER_OFFSET
-    }
-
+impl Section for Apploader {
     fn print_info(&self, style: NumberStyle) {
         println!("Offset: {}", format_u64(APPLOADER_OFFSET, style));
         println!("Date: {}", self.date);
@@ -104,19 +82,12 @@ impl<'a> LayoutSection<'a> for Apploader {
             format_usize(self.total_size(), style),
         );
     }
-}
 
-impl<'a> UniqueLayoutSection<'a> for Apploader {
-    fn section_type(&self) -> UniqueSectionType {
-        UniqueSectionType::Apploader
+    fn start(&self) -> u64 {
+        APPLOADER_OFFSET
     }
 
-    fn with_offset<R>(file: R, offset: u64) -> io::Result<Apploader>
-    where
-        Self: Sized,
-        R: BufRead + Seek,
-    {
-        Apploader::new(file, offset)
+    fn size(&self) -> usize {
+        self.total_size()
     }
 }
-

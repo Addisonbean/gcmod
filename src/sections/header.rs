@@ -1,19 +1,18 @@
 // This chapter of yagcd was invaluable to working on this file:
 // http://hitmen.c02.at/files/yagcd/yagcd/chap13.html
 
-use std::borrow::Cow;
 use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-use sections::layout_section::{LayoutSection, SectionType, UniqueLayoutSection, UniqueSectionType};
 use ::{
     extract_section,
     format_u64,
     format_usize,
     NumberStyle,
-    paths::HEADER_PATH,
 };
+
+use sections::Section;
 
 pub const GAME_HEADER_SIZE: usize = 0x2440;
 
@@ -267,23 +266,7 @@ impl Header {
     }
 }
 
-impl<'a> LayoutSection<'a> for Header {
-    fn name(&'a self) -> Cow<'a, str> {
-        HEADER_PATH.into()
-    }
-
-    fn section_type(&self) -> SectionType {
-        SectionType::Header
-    }
-
-    fn len(&self) -> usize {
-        GAME_HEADER_SIZE
-    }
-
-    fn start(&self) -> u64 {
-        0
-    }
-
+impl Section for Header {
     fn print_info(&self, style: NumberStyle) {
         println!("Game ID: {}{}", self.game_code, self.maker_code);
         println!("Title: {}", self.title);
@@ -291,19 +274,12 @@ impl<'a> LayoutSection<'a> for Header {
         println!("FST offset: {}", format_u64(self.fst_offset, style));
         println!("FST size: {} bytes", format_usize(self.fst_size, style));
     }
-}
 
-impl<'a> UniqueLayoutSection<'a> for Header {
-    fn section_type(&self) -> UniqueSectionType {
-        UniqueSectionType::Header
+    fn start(&self) -> u64 {
+        0
     }
 
-    fn with_offset<R>(file: R, offset: u64) -> io::Result<Header>
-    where
-        Self: Sized,
-        R: BufRead + Seek,
-    {
-        Header::new(file, offset)
+    fn size(&self) -> usize {
+        GAME_HEADER_SIZE
     }
 }
-
