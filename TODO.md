@@ -36,8 +36,6 @@
  * Rename LayoutSection to Section???
  * Should ROMLayout have a BinaryHeap instead of a Vec?
  * Fix the style to be consistent with the official Rust style guide
- * Get rid of that one unsafe block
- * LayoutSection needs to be split into separate traits, like RebuildableSection, ExtractableSection, Section, etc... (*current*)
  * Add an offset param to extract\_section (still?)
  * Make Entry easier to use
  * Make a DOL struct, which contains a DOLHeader struct, and would probably contain the segments directly
